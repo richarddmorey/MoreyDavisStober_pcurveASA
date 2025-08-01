@@ -1,0 +1,50 @@
+---
+title: "On the poor statistical properties of the $P$-curve meta-analytic procedure"
+
+# set to 1 to the authors and acknowledgements, producing the required blinded version.
+blinded: 0
+
+authors: 
+- name: "Richard D. Morey"
+  affiliation: "School of Psychology, Cardiff University"
+  
+- name: "Clintin P. Davis-Stober"
+  affiliation: "Department of Psychological Sciences, University of Missouri MU Institute for Data Science and Informatics, University of Missouri" 
+
+keywords:
+- inference
+- meta-analysis
+- admissibility
+abstract: |
+  `r here::here('text/sections/00_abstract.md') |> readLines() |> paste(collapse='\n')`
+
+bibliography: "../bib/bibfile.bib"
+biblio-style: apalike # default is using plain.bst
+output:
+  bookdown::pdf_book:
+    base_format: rticles::asa_article
+    keep_tex: true
+header-includes: |
+  \usepackage{afterpage}
+  \usepackage{setspace}
+  \pdfminorversion=4
+  \mathchardef\breakingcomma\mathcode`\,{\catcode`,=\active
+    \gdef,{\breakingcomma\discretionary{}{}{}}
+  }
+  \newcommand{\mathlist}[1]{$\{\mathcode`\,=\string"8000 #1\}$}
+  \newcommand{\dummy}[1]{#1}
+---
+
+<!--
+Everything needs to fit within 26 lines per page; need to change the 
+\spacingset in asa_paper.tex. 1.75 seems to be a value that works.
+-->
+
+```{=latex}
+% This version was compiled `r format(Sys.time(), "%a %b %d %X %Y %Z")`.
+```
+
+```{r child='../sections/00_structure.Rmd'}
+```
+
+# Bibliography

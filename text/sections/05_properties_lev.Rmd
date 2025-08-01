@@ -1,0 +1,304 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+## Properties of tests $LEV$ and $LEV^*$
+
+Tests $LEV$ and $LEV^*$ are tests of the hypothesis that *at least one noncentrality parameter* in a set of studies is smaller than $\lambda'\approx 2.34$, after conditioning on statistical significance. The first critique---and the most substantial one, in our opinion---is that it is not clear why one would test this hypothesis. @Simonsohn:etal:2014 have interpreted this test as a test of "lack of evidential value", implying that if this test rejects, then this means that the distribution of $p$ values "is flatter than one would expect if studies were powered at 33\%". But there is no logical connection between the statistical hypothesis test and their interpretations.
+
+To see this more clearly, consider that the test statistics for $LEV$ and $LEV^*$ are sums of transformed $p$ values. As one $p_i$ value in the set approaches $\alpha_{pc}$, $p_{n,i}$ and $p^*_{n,i}$ will approach 0, and hence $p_{n,\cdot}$ and $p^*_{n,\cdot}$ must approach 0. This is not necessarily problematic for a test that at least one noncentrality parameter is small, but it *is* inconsistent with the interpretation that the whole set "lacks evidential value" or that it is about the "flatness" of the distribution of $p$ values. The flatness of the distribution of $p$ values will hardly change as a single $p$ value approaches 0.05, yet the test is guaranteed to eventually reject regardless of how large the other test statistics are.
+
+A further reason why the hypothesis is uninteresting is that noncentrality parameters confound effect size and sample size.
+
+### Problematic interpretation due to the bounded parameter space
+
+The boundedness of the parameter space at $\lambda=0$ further complicates the interpretation of tests $LEV/LEV^*$.  When a significance test rejects, the conclusion is that the null hypothesis misfits in some way. With an unbounded parameter space, the move from "the null misfits" to "the effect size is large" does not seem problematic because no matter how large the test statistic is, there are parameter values consistent with it (though in practice we try to ensure rejection isn't due to misfit of another aspect of the model). 
+
+```{r}
+X2_misfit_lev = qtchisq(.05,df=1)
+p_misfit_lev = pchisq(X2_misfit_lev,1,lower.tail = FALSE)
+p_misfit_ls = .05 - .05*.05
+X2_misfit_ls = qchisq(p_misfit_ls,1,lower.tail = FALSE)
+lr = (dchisq(qchisq(.05,1,lower.tail = FALSE),1)/.05) / (dchisq(qchisq(.05,1,lower.tail = FALSE),1,find_ncp_chi2_uniroot(df=1))*3)
+```
+
+With a parameter space bounded below, however, as a test statistic shrinks it moves from supporting small effect sizes to supporting model misfit. A classic example of this logic is Fisher's famous critique of Mendel [@Fisher:1936;@Edwards:1986]: small test statistics lead not to a conclusion that the noncentrality parameter is small, but rather that something has gone wrong. In the case of $LEV/LEV^*$, there is little difference between the critical $p$ value in a single study that would lead to a rejection of $\lambda\geq2.34$ at $\alpha=.05$, and the critical $p$ value that would lead to a rejection of the model outright at $\alpha=.05$ (i.e., reject $\lambda\geq 0$): 
+`r round(p_misfit_lev,3)` and  `r p_misfit_ls`, respectively. A rejection of the hypothesis that "all $\lambda_i\geq2.34$" may not be grounds for claiming that the noncentrality parameter is small; it may only be grounds for claiming that the null model misfits. The test statistic is so small that we reject the hypothesis that every test statistic was an independent realization of a random variable of the sort specified by the meta-analyst.
+
+The $P$-curve authors might be satisfied in concluding "model misfit" instead of "there is at least one small noncentrality parameter": the misfit might be caused by $p$ hacking. This conclusion, though, does weaken what one can say on the basis of a rejection of the null in tests $LEV/LEV^*$, particularly because the null model is "all $\lambda_i\geq2.34$". When this test rejects we might ask, "so what?" A rejection of *all* noncentrality parameters, is potentially more interesting; in the supplement we discuss misfit tests $LS/LS^*$ (and a less-sensitive replacement).
+
+### Sensitivity at the criterion
+
+We previously showed that test $EV^*$ was highly sensitive to one value at the criterion, but test $EV$ was not. Test $LEV$, however, is very sensitive to a single value at the criterion, while test $LEV^*$ inherits the sensitivity of $EV^*$.
+
+```{r}
+ref_p = (pchisq(qchisq(.049,1,lower.tail = FALSE),1,ncp = find_ncp_chi2_uniroot(df=1)) - 2/3)*3
+```
+
+The sensitivity of $LEV$ is due to the effective reflection of the $p$ values before entering the values into the log transformation, instead of simply using the same test statistic as test $EV$. A $p$ value of .049, for instance, will yield a value to be summed of $-2\log(`r round(ref_p,4)`)=`r round(-2*log(ref_p),1)`$; considering that the expectation of each component of the sum is 2 (because each study increases the degrees of freedom by 2), such a value has a lot of weight.
+
+For test LEV this becomes extreme: consider six studies that yield $Z=8$ combined with a single study that yields $\chi^2_{195}=228.58$ $(p=`r pchisq(228.58,195,lower.tail = FALSE)`)$. Although six studes have very large $Z$ statistics, they are cancelled out by the single value near the significance criterion. Adding to the problem, arbitrarily large test statistics are mapped to 0 in the sum because for large $X_i$ values $p_{n,i}=1$ and $log(1)=0$; hence, they do not contribute to the sum at all! The example thus works just as well with six studies with $Z=\infty$. To claim that a rejection of the null in test $LEV$ indicates a "lack of evidential value" would be absurd.
+
+```{r}
+before_round = pcurve_Z(c(1.964,2.8,2.8))[2,2,2]
+after_round = pcurve_Z(c(1.96,2.8,2.8))[2,2,2]
+```
+
+Owing to the thinner tails of the probit transformation test, $LEV^*$ is less sensitive than $LEV$, but it is still very sensitive. The reflection of the $p$ value doesn't change the sensitivity from $EV^*$ because the probit transformation is symmetric. The set $Z=\{1.964,2.8,2.8\}$ yields $p_{n,\cdot}=`r round(before_round,3)`$. If an author were to round 1.964 to 1.96, this results in $p_{n,\cdot}=`r round(after_round,3)`$. As with $EV^*$, something as trivial as rounding to two decimal places can radically alter the result.
+
+### General properties of $LEV$ and $LEV^*$
+
+For $EV$ and $EV^*$ the null hypothesis was a single point on the edge of the parameter space; for $LEV$ and $LEV^*$, the null hypothesis that $\lambda_i\geq2.34, \forall i$ is composite, unbounded, and multiparameter. @LehmannTestingMultiparameterHypotheses1952 showed that for such hypotheses, no analytic function can yield rejection bounds for an unbiased test. $LEV$ and $LEV^*$ will thus be biased with alternative regions where the power function is substantially less than the nominal $\alpha$ of the test.
+
+Admissibility with multiparameter tests is difficult to prove and in any case may not yield suitable tests [@perlmanEmperorNewTests1999]. We are left in a situation where candidate tests are not expected to dominate one another, and trade-offs between power in one or another region of the parameter space must be considered. Due to the tests' bias, balancing Type I error across the null region and low power in the alternative region must also be considered. The choice of test might be driven by which parts of the parameter space have extremely poor detectability and which do not.
+
+We consider $K=2$ studies. Figure \@ref(fig:levcrit2)A shows the rejection regions for test $EV^*$ and $LEV^*$. The rejection region for $LEV^*$ is concentrated near small test statistics and along the edges of the space where a single test statistic is small, again showing that a single small test statistic can cause the test to reject. The rejection regions for $EV^*$ and $LEV^*$ are well-separated, indicating that it would be difficult for both tests to reject at the same time (though not impossible; e.g., @westPCurveAnalysisTaylor2021). 
+
+Figure \@ref(fig:levcrit2)B shows the rejection regions for $EV$ and $LEV$. As with $EV^*$ and $LEV^*$, the rejection region for $LEV$ is spread along the values just near the significance criterion for each test statistic. The rejection region for $EV$ and $LEV$ overlap much more than for $EV^*$ and $LEV^*$, meaning that both tests can easily reject at the same time. This is reasonable for tests whose alternatives are "$\lambda_i>0$ for some $i$" ($EV$) and "$\lambda_j<2.34$ for some $j$" ($LEV$), but is obviously unreasonable for any interpretation in terms of "[lack of] evidential value" or the "flatness" or "skew" of the distribution of $p$ values.
+
+```{r levcrit2,fig.cap='Rejection regions for tests $EV^*$, $LEV^*$  (panel A), and $EV$, $LEV$ (panel B) when $k=2$. ',fig.height=8,fig.width=5}
+alpha_bound = .05
+alpha_test = .05
+tuning_power = 1/3
+ncp = find_ncp_chi2_uniroot(tuning_power = tuning_power, df = 1)
+zt = qnorm(alpha_test) # test statistic for EV*
+xt = qchisq(alpha_test, 4, lower.tail = FALSE)
+max_x = 20
+min_x = qchisq(1-alpha_bound,1)
+  
+#x2: EV bounday
+#x2_star: EV* boundary
+#y2: LEV boundary
+#y2_star: LEV* boundary
+tibble(
+  x1 = seq(min_x+.000000001,max_x,length.out = 2^12),
+  x2 = qchisq(alpha_bound * exp(-xt/2 - log(pchisq(x1,1,lower.tail = FALSE)) + log(alpha_bound)),1,lower.tail=FALSE),
+  x2_star = qchisq(alpha_bound * pnorm(zt * sqrt(2) - qnorm(pchisq(x1,1,lower.tail = FALSE)/alpha_bound)),1,lower.tail = FALSE),
+  y2 = qchisq((1-tuning_power) + tuning_power*exp(-qchisq(1-alpha_test,4)/2 - log((pchisq(x1,1,ncp) - (1-tuning_power))/tuning_power)),1,ncp),
+  y2_star = qchisq((1-tuning_power) + tuning_power*pnorm(qnorm(alpha_test)*sqrt(2) - qnorm( (pchisq(x1,1,ncp) - (1-tuning_power))/tuning_power )),1,ncp)
+) |>
+  mutate(
+    x2 = case_when(
+      x2 < min_x ~ NA,
+      is.nan(x2) ~ NA,
+      TRUE ~ x2
+    )
+  ) |>
+  tidyr::pivot_longer(
+    cols = c(x2,x2_star,y2,y2_star),
+    names_to = 'test', values_to = 'x2'
+  )-> setup_df
+
+setup_df %>% {
+  filter(., test %in% c('x2','y2')) |>
+  ggplot(aes(x=x1,y=x2,group=test, color = test, fill=test)) +
+  geom_line() +  
+  geom_ribbon(
+    data = . |> filter(test == 'x2'),
+    aes(x=x1,ymin=x2,color=NULL),ymax=Inf,alpha=0.3
+    ) +
+  annotate("rect",
+    ymin = 0,
+    ymax = Inf,
+    xmin = . |> filter(test == 'x2') |> na.omit() |> pull(x1) |> max(na.rm=TRUE),
+    xmax = Inf,
+    fill = RColorBrewer::brewer.pal(3, 'Dark2')[1],
+    alpha = 0.3
+  ) +
+  geom_ribbon(
+    data = . |> filter(test == 'y2'),
+    aes(x=x1,ymax=x2,color=NULL),ymin=0,alpha=0.3
+    ) +
+  scale_x_continuous(
+    name = expression(X[1]),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                    name=expression(paste(X[1]," p value")),
+                    breaks = c(.04,.025,.01,.001,.0001),
+                    labels = prettyNum(c(.04,.025,.01,.001,.0001),scientific=FALSE)
+                    )
+  ) +
+  scale_y_continuous(
+    name = expression(X[2]),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                    name=expression(paste(X[2]," p value")),
+                    breaks = c(.04,.025,.01,.001,.0001),
+                    labels = prettyNum(c(.04,.025,.01,.001,.0001),scientific=FALSE)
+                    )
+  ) +
+  scale_color_brewer(type = 'qual', palette = 2,
+    name = 'Test',
+    labels = c('EV (log)','LEV (log)')
+  ) +
+  scale_fill_brewer(type = 'qual', palette = 2,
+    name = 'Test',
+    labels = c('EV (log)','LEV (log)')
+  ) +
+  coord_fixed(
+    xlim = c(qchisq(1-alpha_bound,1), 16),
+    ylim=c(qchisq(1-alpha_bound,1), 16),
+    expand=FALSE
+    ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x.top = element_text(angle=90,hjust=0,vjust=.5,size=6),
+    axis.text.y.right = element_text(size=6,vjust=.5),
+    axis.ticks.x.top = element_line(),
+    axis.ticks.y.right = element_line(),
+    axis.title.x.top = element_text(size=8),
+    axis.title.y.right = element_text(size=8)
+    ) 
+  } -> g1
+  
+
+setup_df %>% {
+  filter(., test %in% c('x2_star','y2_star')) |>
+  ggplot(aes(x=x1,y=x2,group=test, color = test, fill=test)) +
+  geom_line() +  
+  geom_ribbon(
+    data = . |> filter(test == 'x2_star'),
+    aes(x=x1,ymin=x2,color=NULL),ymax=Inf,alpha=0.3
+    ) +
+  geom_ribbon(
+    data = . |> filter(test == 'y2_star'),
+    aes(x=x1,ymax=x2,color=NULL),ymin=0,alpha=0.3
+    ) +
+  scale_x_continuous(
+    name = expression(X[1]),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                name=expression(paste(X[1]," p value")),
+                breaks = c(.04,.025,.01,.001,.0001),
+                labels = prettyNum(c(.04,.025,.01,.001,.0001),scientific=FALSE)
+                )
+  ) +
+  scale_y_continuous(
+    name = expression(X[2]),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                name=expression(paste(X[2]," p value")),
+                breaks = c(.04,.025,.01,.001,.0001),
+                labels = prettyNum(c(.04,.025,.01,.001,.0001),scientific=FALSE)
+                )
+  ) +
+  scale_color_brewer(type = 'qual', palette = 4,
+    name = 'Test',
+    labels = c('EV* (probit)','LEV* (probit)')
+  ) +
+  scale_fill_brewer(type = 'qual', palette = 4,
+    name = 'Test',
+    labels = c('EV* (probit)','LEV* (probit)')
+  ) +
+  coord_fixed(
+    xlim = c(qchisq(1-alpha_bound,1), 16),
+    ylim=c(qchisq(1-alpha_bound,1), 16),
+    expand=FALSE
+    ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x.top = element_text(angle=90,hjust=0,vjust=.5,size=6),
+    axis.text.y.right = element_text(size=6,vjust=.5),
+    axis.ticks.x.top = element_line(),
+    axis.ticks.y.right = element_line(),
+    axis.title.x.top = element_text(size=8),
+    axis.title.y.right = element_text(size=8)
+    ) 
+  } -> g2
+  
+(
+  (g2 + annotate("text",label="A",x=Inf,y=Inf,hjust=1,vjust=1,size=6)) +
+  (g1 + annotate("text",label="B",x=Inf,y=Inf,hjust=1,vjust=1,size=6))
+) + plot_layout(guides = "collect") & theme(legend.position = "bottom") 
+
+```
+
+Figure \@ref(fig:levpow2) shows power contours for $K=2$ studies for tests $LEV^*$ (A) and $LEV$ (B). The figures show the bias of both tests and that the power of one test does not dominate the other. The relative thickness of $LEV$'s rejection region along the "axes", as shown in Figure \@ref(fig:levcrit2)B, translates to higher power when a single test statistic is small. In contrast, the thinness of the tails of the normal transform and hence $LEV^*$'s rejection region (Figure \@ref(fig:levcrit2)A) concentrates more of the power near the origin.
+
+```{r levpow2,cache=TRUE,fig.cap='Power contours for tests $LEV^*$ and $LEV$ when $K=2$. The region in the upper right-hand corner represents the null hypothesis that $\\lambda_1,\\lambda_2\\geq2.34$. The dashed line represents the contour where power is equal to the Type I error rate. Axes show $\\sqrt{\\lambda}$ for clarity.',out.height=".4\\textwidth"}
+# k = 2, bivariate
+expand.grid(
+  mu1 = seq(0,4,length.out=20),
+  mu2 = seq(0,4,length.out=20),
+  k1 = 1,
+  k2 = 1,
+  test = c('2014'
+           ,'2015'
+           #,'z2sum'
+           ),
+  stringsAsFactors = FALSE
+) |>
+  mutate(
+    pow = pbmcapply::pbmcmapply(
+      FUN = power_test2, 
+      mu1 = mu1, 
+      k1 = k1, 
+      mu2 = mu2, 
+      k2 = k2, 
+      test = test
+    )
+  ) -> power_curve
+
+#power_curve |>
+#  filter(test=='2014') |>
+#  select(-test) |>
+#  mutate(
+#    test = 'fw',
+#    pow = pbmcapply::pbmcmapply(
+#      FUN = power_fw_correction,
+#      mu1 = mu1, 
+#      k1 = k1, 
+#      mu2 = mu2, 
+#      k2 = k2)
+#    ) |>
+#  bind_rows(power_curve) -> power_curve
+
+power_curve |>
+  mutate(
+    test = factor(test, 
+                  levels = c('2015'
+                             ,'2014'
+                             #,'z2sum'
+                             ),
+                  labels = c(
+                    "paste('Test LEV* (probit)')",
+                    "paste('Test LEV (log)')"                    
+                    #,'sum(X[i])<c[0]'
+                  ), ordered = TRUE
+                  )
+  ) |>
+  ggplot(aes(z=pow,x=mu1,y=mu2)) +
+  geom_contour_filled(breaks = seq(0,.2,.025)) +
+  scale_fill_viridis_d(
+    name = 'Pr(Rejection)'
+  ) +
+  geom_contour(breaks = .05, col = 'lightgray', linetype='dashed') +
+  coord_fixed(expand = FALSE) +
+  geom_segment(
+    y = sqrt(find_ncp_chi2_uniroot(df=1)),
+    yend = Inf,
+    x = sqrt(find_ncp_chi2_uniroot(df=1)),
+    xend = sqrt(find_ncp_chi2_uniroot(df=1)),
+    color='white'
+    ) +
+  geom_segment(
+    x = sqrt(find_ncp_chi2_uniroot(df=1)),
+    xend = Inf,
+    y = sqrt(find_ncp_chi2_uniroot(df=1)),
+    yend = sqrt(find_ncp_chi2_uniroot(df=1)),
+    color='white'
+  ) +
+  scale_x_continuous(
+    name = expression(sqrt(lambda[1]))
+  ) +
+  scale_y_continuous(
+    name = expression(sqrt(lambda[2]))
+  ) +
+  facet_wrap(
+    ~test, ncol = 2,
+    labeller = label_parsed
+    )
+
+```
+
+Although by construction, tests $LEV$ and $LEV^*$ are level-$\alpha$ tests of the null hypothesis that "all noncentrality parameters are at least the noncentrality parameter that would yield a one-third probability of statistical significance for the nontruncated test statistic," we can examine the power contours in Figure \@ref(fig:levpow2) and see that there is another hypothesis implied at level $\alpha$: effectively, "none of the noncentrality parameters are within some generalised distance from the origin". The generalized distance will depend on the choice of tuning noncentrality being tested against, the transformation used, and the distributions of the test statistics (e.g. $\chi^2$, $F$). We also have the aforementioned issue of the bounded parameter space. It is therefore difficult to characterize the inference one would draw from a rejection.
+

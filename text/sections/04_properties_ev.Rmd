@@ -1,0 +1,17 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Properties of tests $EV$ and $EV^*$
+
+```{r child='04a_sensitivity.Rmd'}
+```
+
+```{r child='04b_inadmissibility.Rmd'}
+```
+
+```{r child='04c_nonmonotonicity.Rmd'}
+```
+

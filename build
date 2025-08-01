@@ -1,0 +1,11 @@
+cd text/asa_article/
+
+Rscript -e "rmarkdown::render('asa_paper.Rmd')" 
+Rscript -e "rmarkdown::render('supplement.Rmd')" 
+
+sed -i'' -e 's/Department of Psychological Sciences, University of Missouri MU Institute for Data Science and Informatics, University of Missouri/Department of Psychological Sciences, University of Missouri\\\\\nMU Institute for Data Science and Informatics, University of Missouri/g' asa_paper.tex
+sed -i'' -e 's/\spacingset{1.9}/\spacingset{1.75}/g' asa_paper.tex
+
+pdflatex asa_paper.tex
+
+type afplay &> /dev/null && afplay /System/Library/Sounds/Hero.aiff || echo "Done."

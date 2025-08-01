@@ -1,0 +1,176 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+### Undue sensitivity at the critical boundary
+
+```{r}
+z_round0 = c(4, 3.4, 1.964)
+z_round1 = round(z_round0,2)
+
+pm_round0 = pcurve_Z(z_round0)[2,1,'2015']
+pm_round1 = pcurve_Z(z_round1)[2,1,'2015']
+```
+
+Consider a hypothetical set of three studies, where each study reports the results of a single $z$ test as follows: $z_1=`r z_round0[1]`$; $z_2=`r z_round0[2]`$; and $z_3=`r z_round0[3]`$.  If we test the "evidential value" for these studies using \(EV^*\), we obtain $p^{*}_{e,\cdot} = `r round(pm_round0,3)`$.  Therefore, we would conclude that this set "has evidential value". However, suppose that the authors of the original study 3 had decided to round $z_3$ to two digits instead of three, to be in line with a journal's style requirements. For a well-behaved meta-analytic procedure, this should produce a trivial change (if any) in the overall test. If $z_3=`r z_round1[3]`$, however, test \(EV^*\) yields $p^{*}_{e,\cdot}=`r round(pm_round1,3)`$. A small change in the statistic---bringing it closer to the boundary through rounding---has caused a major change in the $p$ value and a difference in the conclusion at the standard level $\alpha=0.05$.
+
+This sensitivity is the result of how the "robustness" was achieved in the 2015 switch to the probit in the $P$-curve tests. Figure \@ref(fig:transchisq1) shows the transformation from the truncated $\chi^2_1$ test statistics to the values to be summed for test $EV^*$. Small $\chi^2_1$ values near the truncation point are transformed to arbitrarily large values. This has the effect of exaggerating the evidence *against* an effect when they are summed with other values. On the other hand, large values of the test statistic are increasingly attenuated by the transform.
+
+```{r transchisq1,fig.cap='Transformation from the truncated $\\chi^2_1$ values to probit-transformed values that will be summed to produce $p^*_{e,\\cdot}$ in test $EV^*$. The points show the $p$ values from the $\\chi^2_1$ conditional on being above the left truncation point.'}
+tr = qchisq(.05,1,lower.tail = FALSE)
+p0 = seq(.0001,.9999,.0001)
+p = c(.01,.05,.25,.5,.75,.95,.99)
+x2_vals0 = qtchisq(1-p0,tuning_power = .05)
+x2_vals = qtchisq(1-p,tuning_power = .05)
+oldmar = par()$mar
+newmar = oldmar
+newmar[3] = 5
+par(mar = newmar)
+plot(x2_vals0,qnorm(p0),ty='l', yaxs = 'i', 
+     ylab='Probit-transformed p value',
+     xlab=expression(paste(chi[1]^2,' value (left truncated)')),las=1,lwd=2)
+abline(v=tr,lty=2)
+rect(tr,qnorm(p[4]),x2_vals[4],par()$usr[4], col = rgb(1,0,0,.2), border = NA)
+rect(x2_vals[4],par()$usr[3],par()$usr[2],qnorm(p[4]), col = rgb(0,.5,.5,.2), border = NA)
+text(x2_vals[4],par()$usr[4],labels = 'Exaggerating negative evidence', col=rgb(1,0,0,.7),adj=c(-.02,1.5))
+text(par()$usr[2],qnorm(p[4]),labels = 'Attenuating positive evidence', col=rgb(0,.5,.5,.7),adj=c(1.01,-.1))
+points(x2_vals, qnorm(p),pch=19,cex=1)
+text(x2_vals, qnorm(p), labels = p, adj=c(-.2,-.2), cex = .7)
+text(tr,par()$usr[3],labels = 'Left truncation',srt=90,adj=c(-.1,-.2),cex=.7)
+shape::Arrows(sort(x2_vals0)[2],qnorm(sort(p0,decreasing = TRUE))[2],
+              sort(x2_vals0)[1],qnorm(sort(p0,decreasing = TRUE))[1],
+              arr.adj = 1)
+shape::Arrows(sort(x2_vals0,decreasing = TRUE)[2],qnorm(sort(p0))[2],
+              sort(x2_vals0,decreasing = TRUE)[1],qnorm(sort(p0))[1],
+              arr.adj = 1)
+axis(3,
+     at = qchisq(c(.04,.025,.01,.001,.0001),1,lower.tail = FALSE),
+     labels = prettyNum(c(.04,.025,.01,.001,.0001),scientific=FALSE),
+     las = 2, cex.axis=.7
+     )
+mtext(text = 'Untransformed p value',side = 3,line = 3, cex = .85)
+#text(x2_vals, qnorm(p), labels = sprintf("%.4f",.05*(1-rev(p))), adj=c(-.2,-.2), cex = .7)
+
+# gr = \(x) -1/dnorm(qnorm((1-pchisq(x,1))/.05)) / .05 * dchisq(x,1)
+# curve(gr(x),qchisq(.049,1,lower.tail = FALSE),16,1000,lwd=3,
+#       ylab='Gradient',xlab=expression(paste(chi[1]^2,' value (truncated below)')),las=1,
+#       xlim=c(3.84,15),ylim=c(-11,0))
+# abline(h=0,lty=2)
+# points(x2_vals, gr(x2_vals),pch=19,cex=1)
+# text(x2_vals, gr(x2_vals), labels = rev(p), adj=c(-.2,1.1), cex = .7)
+# 
+# 
+# plot(x2_vals0, -2*log(p0),ty='l', yaxs = 'i', xaxs = 'i', 
+#      ylab='-2 x log-transformed p value',
+#      xlab=expression(paste(chi[1]^2,' value (truncated below)')),las=1,lwd=2)
+# points(x2_vals, -2*log(p),pch=19,cex=1)
+# text(x2_vals, -2*log(p), labels = rev(p), adj=c(-.2,1.2), cex = .7)
+
+```
+
+If we could summarise the main error in choosing the probit transform for this problem, it is that the probit is a two-tailed transformation (strongest evidence at $-\infty$ and $+\infty$), but test $EV^*$ applies it to one-tailed test statistics (strongest evidence at $+\infty$).
+
+We can view the sensitivity as an interaction between the $p$ values in a set and any criterion. Recall that @Simonsohn:etal:2015 proposed the "half $P$-curve" rule, which combines a test where the truncation occurs at $p=0.05$ with one where the truncation occurs at $p=0.025$. The probit transform causes test $EV^*$ to be poorly behaved, because a value near *either* criterion can completely negate all other evidence. The second criterion also adds arbitrariness to the test. The reason for $\alpha_{pc}=0.05$ is clear: it is the standard threshold for statistical significance. The same cannot be said for the half $P$-curve's $\alpha_{pc}=0.025$, which was chosen arbitrarily. The test result can change radically depending on which criterion we happen to choose for the "half" criterion. In fact, we can almost achieve any test outcome we like.
+
+
+```{r}
+K = 8
+alpha = .05
+tuning_power = 1/2
+lambda = find_ncp_chi2_uniroot(tuning_power = tuning_power,df=1)
+```
+
+To show this, we produced a set of `r K` studies whose individual $p$ values were `r K+1`-iles of the distribution of statistically significant $p$ values when $\lambda=`r round(lambda,2)`$ (that is, the noncentrality parameter yielded a `r tuning_power` probability of significance in any single study). Figure \@ref(fig:evdropalpha) shows test $EV^*$'s $p^*_{e,\cdot}$ (top) and $EV$'s $p_{e,\cdot}$ (bottom) as the truncation point changes. 
+
+```{r evdropalpha, fig.cap = glue::glue('Meta-analytic $p$ values as the truncation bound is changed. Top: Test $EV^*$; Bottom: Test $EV$. Shaded regions show the truncation points where the $p_{{e,\\cdot}}^*$ (top) or $p_{{e,\\cdot}}$ (bottom) is statistically significant. Small, black triangles at the bottom of each plot show the location the {K} $p$ values entered into the meta-analysis.')}
+
+#crit = qchisq(alpha,1,lower.tail = FALSE)
+p0 = seq(tuning_power,0,length.out=K+2)
+p0 = p0[-c(1,length(p0))]
+
+X = qchisq(p0,1,lambda, lower.tail = FALSE)
+p = pchisq(X,1,lower.tail = FALSE)
+
+f = function(alpha_bound = .05, Z2){
+  p = pchisq(Z2,1,lower.tail = FALSE)
+  Z2 = Z2[p<alpha_bound]
+  res = pcurve_Z(sqrt(Z2), alpha_bound = alpha_bound)[2,1,]
+  return(res)
+}
+
+alphas = seq(.05,min(p), length.out = 2^12)
+pm = sapply(alphas, f, Z2 = X)
+data.frame(
+  alp = c(alphas,sapply(p, \(p) nextAfter(p,p+1))),
+  p2014 = c(pm[1,], rep(NA,length(p)-1),1),
+  p2015 = c(pm[2,],rep(1,length(p)-1),1)
+) |> 
+  arrange(alp) |>
+  mutate(x_left = sapply(alp, \(a) sum(p<=a))) |>
+  tidyr::pivot_longer(
+    cols = matches('p201'),names_to = 'test',values_to = 'test_p'
+  ) |>
+  filter(
+    alp>min(alphas),
+    !is.na(test_p)
+    ) |>
+  mutate(
+    test = factor(test, levels = c('p2015','p2014'))
+  ) -> x
+
+x |>
+  mutate(sig = test_p<.05) |>
+  group_by(test, x_left, sig) |>
+  summarise(
+    min_alp = min(alp),
+    max_alp = max(alp)
+  ) |>
+  filter(sig) -> sig_ranges
+
+x |>
+  ggplot(aes(x=alp,y=test_p,group=x_left)) +
+  annotate("point",x=p,y=0,color='black',shape=17) +
+  facet_grid(
+    rows = 'test',
+    labeller = labeller(
+      test = c(
+        p2014 = 'Test EV (log)', p2015 = 'Test EV* (probit)'
+      )
+    )) +
+  geom_line(aes(color=test)) +
+  #annotate('rect',xmin=-Inf,xmax=Inf,ymin=0,ymax=.05, fill = 'grey', alpha=.3) +
+  scale_y_continuous(
+    name = 'Meta-analytic p value (EV/EV*)',
+    breaks = seq(0,1,.2),
+    expand = c(0,0),
+    limits = c(0,1)
+  ) +
+  scale_x_continuous(
+    name = expression(paste('Truncation ', alpha))
+  ) +
+  geom_rect(
+    data = sig_ranges, 
+    aes(xmin=min_alp,xmax=max_alp,fill=test), ymin=-Inf, ymax=Inf,
+    alpha = .15,
+    inherit.aes = FALSE
+    ) +
+  geom_hline(yintercept = 0.05, linetype = 'solid', color = "black", alpha = .5) +
+  annotate('text',y=.05,x=Inf,hjust=1,vjust=-0.2 ,label = "0.05") +
+  scale_fill_brewer(type = 'qual') +
+  scale_color_brewer(type = 'qual') +
+  theme_minimal() +
+  theme(
+    panel.grid.major.x = element_blank(), 
+    panel.grid.minor.x = element_blank(),
+    legend.position = 'none',
+    panel.spacing = unit(20, "pt")
+    )
+
+```
+
+Figure \@ref(fig:evdropalpha) (top) shows what happens for the constructed data set as we change the second criterion (the "half" criterion). For test $EV^*$ a single result near the criterion produces arbitrarily large $p$ values. As the significance criterion drops, $p_{e,\cdot}^*$ increases to 1. When a study is then eliminated  ($p_i\geq\alpha_{pc}$), $p_{e,\cdot}^*$ drops from 1 to a much lower value. This is shown in Figure \@ref(fig:evdropalpha) (top) as lines that swing wildly between 0 and 1. This value of $p_{e,\cdot}^*$ is almost entirely dependent on which $\alpha_{pc}$ we choose for the "half" test. Although @Simonsohn:etal:2015 chose 0.025, any choice of $\alpha_{pc}$ between 0.02 and 0.04 could represent "ambitious" targets for $p$ hacking and would be defensible for the half $P$-curve's purpose. If the set contains even a single $p$ value in that range, there is a choice of criterion that will negate all other evidence. Our hypothetical data set contains a study with $p=`r round(max(p[p<.025]),5)`$ that is close to the half $P$-curve's sharp disconinuity at 0.025, and thus is in one of the wild upward swings ($p_{e,\cdot}^*=`r round(pcurve_Z(sqrt(X[p<.025]), alpha_bound = .025)[2,1,2],3)`$). 
+
+Test $EV$ is much less sensitive. Because the central $\chi^2_1$ distribution has an exponential right tail, the test $EV$'s $p$ value will be approximately proportional to $e^{-X/2}$ and hence $\log p_i\propto X$. Because the transformation used for test $EV$ is almost linear in the test statistic, there is little sensitivity just above the lower bound and no attenuation as the test statistic grows.
+
+In Figure \@ref(fig:evdropalpha) (bottom), we can see mild discontinuities in test $EV$'s $p$ value when a study crosses the "half" $P$-curve boundary and moves from being within the set to outside the set. When combining logarithms, a value at the criterion has $\log(1)=0$ and hence does not contribute to the sum. However, when the study is dropped ($p_i\geq\alpha_{pc}$) the degrees of freedom of the test decrease so the significance criterion changes. Dropping the "dead weight" study near the criterion decreases $p_{e,\cdot}$ slightly. As the truncation $\alpha_{pc}$ becomes very low and few studies are left in the set, the changes in degrees of freedom are more substantial and hence the differences are larger.

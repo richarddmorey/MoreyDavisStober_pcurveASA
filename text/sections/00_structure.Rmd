@@ -1,0 +1,69 @@
+
+```{r knitr_init, include=FALSE}
+library(knitr)
+library(xtable)
+library(rmdformats)
+library(gt)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(paletteer)
+
+library(furrr)
+plan(multisession, workers = parallel::detectCores()-1)
+
+conflicted::conflict_prefer_all('dplyr')
+
+options(mc.cores = parallel::detectCores()-1)
+
+here::here('R_utility/') |>
+  dir(pattern='*.R', full.names = TRUE, include.dirs = FALSE) |> 
+  purrr::walk(source)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               out.height=".3\\textheight")
+opts_knit$set(width=75)
+
+```
+
+# Introduction
+
+```{r child='01_introduction.Rmd'}
+```
+
+# What is the $P$-curve?
+
+```{r child='02_pcurve.Rmd'}
+```
+
+# Conceptual issues with the $P$-curve
+
+```{r child='03_conceptual.Rmd'}
+```
+
+# Statistical properties of the $P$-curve
+
+```{r child='04_properties_ev.Rmd'}
+```
+
+```{r child='05_properties_lev.Rmd'}
+```
+
+```{r child='07a_power.Rmd'}
+```
+
+# Conclusion
+
+```{r child='08_conclusion.Rmd'}
+```
+
+```{r child='09_postmatter.Rmd'}
+```

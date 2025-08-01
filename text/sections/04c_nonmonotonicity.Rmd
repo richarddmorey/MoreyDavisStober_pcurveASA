@@ -1,0 +1,207 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+### Nonmonotonicity in the evidence
+
+
+```{r}
+X2_probit = qtchisq(1:15/16,tuning_power = .31)
+
+X2_probit = sort(X2_probit)
+crit025 = qchisq(.025,1,lower.tail = FALSE)
+crit05 = qchisq(.05,1,lower.tail = FALSE)
+idx = which(X2_probit<crit025, arr.ind = TRUE)
+X2_probit[idx] = crit05 + (X2_probit[idx] - crit05)/5
+#teststat_string(X2_probit, types = 'chi2(1)') |> cat() |> cat('\n')
+
+d_1d_probit_data = construct_nonmono_data(X2_probit, test='2015')
+
+d_1d_probit_data |>
+  group_by(x2) |>
+  summarise(
+    sig_reason = first(sig_reason)
+  ) |>
+  mutate(
+    new_block = sig_reason != lag(sig_reason,1),
+    new_block = if_else(is.na(new_block), TRUE, new_block)
+    ) |>
+  group_by(new_block) |>
+  mutate(
+    block = if_else(new_block == TRUE, row_number(),NA),
+    ) |> 
+  ungroup() |>
+  tidyr::fill(
+    block,.direction = 'down'
+  ) |>
+  select(x2,sig_reason,block) |>
+  mutate(
+    sig_reason = factor(
+      sig_reason, levels = c("No rejection","Half<.1,Full<.1","Half<.05","Both"),
+      ordered = TRUE
+    )
+  ) -> d_1d_probit_sig
+
+d_1d_probit_data |>
+  group_by(pcurve) |>
+  mutate(
+    d2 = (x2 - 5.5)^2
+  ) |>
+  filter(
+    d2 == min(d2)
+  ) |>
+  mutate(
+    p = if_else(pcurve=="full",p-.02,p+.02)  
+  ) -> line_labels_1d
+
+d_1d_probit_data |>
+  ggplot(aes(x=x2,y=p,group=group,color=pcurve,linetype=pcurve)) +
+  geom_ribbon(
+    data = d_1d_probit_sig,
+    aes(x=x2,ymin=0,ymax=1,fill=sig_reason,group=block),
+    alpha=.6, color=NA, inherit.aes = FALSE, show.legend=TRUE
+    ) +
+  scale_fill_manual(
+    name = 'Test result',
+    values = c("white",paletteer_d("nationalparkcolors::Acadia",3)),
+    drop = FALSE
+  ) +
+  geom_line(linewidth=1.2, show.legend = FALSE) +
+  geom_text(
+    data = line_labels_1d,
+    aes(label = tools::toTitleCase(pcurve)),
+    hjust = -.2
+  ) +
+  geom_vline(xintercept = crit05,linetype = 'dashed',color='gray') +
+  annotate('text',label='Full P-curve boundary',x=crit05,y=0,angle=90,hjust=0,vjust=-.2,size=2.5) +
+  geom_vline(xintercept = crit025,linetype = 'dashed',color='gray') +
+  annotate('text',label='Half P-curve boundary',x=crit025,y=0,angle=90,hjust=0,vjust=-.2,size=2.5) +
+  theme_minimal() +
+  geom_hline(yintercept = .1, linetype = 'dotted') +
+  annotate('text',label="0.1", x=Inf,y=.1,hjust=1.1,vjust=-.3) +
+  scale_y_continuous(name='Test EV* p value') +
+  scale_x_continuous(
+    expand = expansion(add=c(.2,0)),
+    name = expression(paste('Added ',chi[1]^2,' value')),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                name=expression(paste('Added ',chi[1]^2,' p value')),
+                breaks = c(.04,.025,.01,.005,.0025),
+                labels = prettyNum(c(.04,.025,.01,.005,.0025),scientific=FALSE)
+                )
+  ) +
+  coord_cartesian(ylim=c(0,.4)) +
+  scale_color_discrete(
+    name='P-curve',labels=c('Full','Half'),
+  ) +
+  guides(linetype = "none", color = "none") +
+  theme(
+    axis.text.x.top = element_text(angle=90,hjust=0,vjust=.5,size=6),
+    axis.ticks.x.top = element_line(),
+    axis.title.x.top = element_text(size=8),
+    legend.key=element_rect(colour='black')
+  ) -> g_nonmono_probit
+
+construct_nonmono_data_2d(X2_probit, test='2015', len=512) |>
+  mutate(
+    rule = 2*half_sig + both_sig
+    ) -> test2015_sig_2d
+
+test2015_sig_2d |>
+  ggplot(aes(x=x2_1,y=x2_2,z=rule)) +
+  geom_contour_filled(breaks  = 0:5 - .5,alpha = .6) +
+  scale_fill_manual(
+    name = 'Test result',
+    values = c("white",paletteer_d("nationalparkcolors::Acadia",3)),
+    #values = c('white','lightblue','red','black'),
+    labels = c(
+      "No rejection",
+      "Half<.1,Full<.1",
+      "Half<.05",
+      "Both"
+    )
+    ) + 
+  scale_x_continuous(
+    expand = expansion(add=c(.3,0)),
+    name = expression(paste('First added ',chi[1]^2,' value')),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                name=expression(paste('First added ',chi[1]^2,' p value')),
+                breaks = c(.04,.025,.01,.005,.0025),
+                labels = prettyNum(c(.04,.025,.01,.005,.0025),scientific=FALSE)
+                )
+
+    ) +
+  scale_y_continuous(
+    expand = expansion(add=c(.3,0)),
+    name = expression(paste('Second added ',chi[1]^2,' value')),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+            name=expression(paste('Second added ',chi[1]^2,' p value')),
+            breaks = c(.04,.025,.01,.005,.0025),
+            labels = prettyNum(c(.04,.025,.01,.005,.0025),scientific=FALSE)
+            )
+    ) +
+  annotate('text',label='Full P-curve boundary',x=crit05,y=crit025,angle=90,hjust=-0.1,vjust=-.2,size=2.5) +
+  annotate('text',label='Half P-curve boundary',x=crit025,y=crit025,angle=90,hjust=-0.1,vjust=1.2,size=2.5) +
+  annotate('text',label='Full P-curve boundary',y=crit05,x=crit025,vjust=1.1,hjust=-.2,size=2.5) +
+  annotate('text',label='Half P-curve boundary',y=crit025,x=crit025,vjust=-.2,hjust=-.2,size=2.5) +
+  geom_hline(yintercept = c(crit05,crit025), linetype = 'dashed',color='gray') +
+  geom_vline(xintercept = c(crit05,crit025), linetype = 'dashed',color='gray') +
+  theme_minimal() +
+  theme(
+    axis.text.x.top = element_text(angle=90,hjust=0,vjust=.5,size=6),
+    axis.text.y.right = element_text(vjust=.5,size=6),
+    axis.ticks.x.top = element_line(),
+    axis.ticks.y.right = element_line(),
+    axis.title.x.top = element_text(size=8),
+    axis.title.y.right = element_text(size=8),
+    legend.key=element_rect(colour='black')
+  )+
+  ggarrow::annotate_arrow(
+    x = c(4.7, 5.3), 
+    y = c(4.7, 9.6),
+    linewidth = .5,
+    lineend = 'round',
+    color='darkblue',
+    alpha=.7
+  ) +
+  coord_fixed() -> g_2d_nonmono_probit
+```
+
+
+```{r probitnonmono,fig.cap='Results of Simonsohn et al\'s combined procedure with the probit method, increasing a single test statsitic (A) and two test statistics (B) added to the demonstration data set. The shaded regions show when  would be statistically significant, and why. In B, the arrows show paths through the space such that both data values increase, yet the decision can change from rejection to acceptance several times. ',fig.height=5, out.height=".35\\textheight"}
+(g_nonmono_probit + g_2d_nonmono_probit) + plot_annotation(tag_levels = 'A') + plot_layout(guides = "collect") & theme(legend.position = "bottom")              
+
+```
+
+```{r}
+# caption for 1d: "Half and full $p^*_{e,\\cdot}$ values (probit method) for a demonstration data set when a new test statistic is added and manipulated from low to high values ($x$ axis).  The shaded regions show when Simonsohn et al\'s combined procedure would be statistically significant." 
+
+#(g_nonmono_probit / g_2d_nonmono_probit)  + plot_annotation(tag_levels = 'A')
+#g_2d_nonmono_probit
+```
+
+```{r cache=FALSE}
+if(!interactive())
+  save(X2_probit,file='fig_values.Rda')
+```
+
+One property that is generally considered essential for a reasonable statistical test is *monotonicity in the evidence*. Increasing the amount of evidence in a single data point should never cause a test to move from rejection to acceptance. It is such a reasonable and widely-met condition, in fact, that it led Birnbaum (1955) to search for other ways to distinguish meta-analytic combination methods, such as admissibility.
+
+Simonsohn et al's (2015) compound half $P$-curve procedure creates a test that is non-monotone in the evidence, due to the hard boundaries between the full and half $P$-curve. The half $P$-curve adds a second boundary in the middle of the test statistic space. When a test statistic lies just on the smaller side of this boundary, it contributes to the strength of the evidence in the full $P$-curve but not at all to the half $P$-curve. If the test statistic is increased slightly to be just on the larger side of the half $P$-curve boundary, it contributes slightly more evidence to the full $P$-curve, but *penalizes* the $p$ value of the half $P$-curve due to its proximity to the criterion.
+
+In the case of the probit combination method, this reduction of $p_{e,\cdot}$ for the half $P$-curve is extreme due to the mapping of the boundary to $+\infty$. To show this, we constructed a demonstration data set containing $k=`r length(X2_probit)`$ $\chi^2_1$ test statistics (values given in the Supplement). We then introduced an additional data point, manipulating the test statistic from small to large. 
+
+Figure \@ref(fig:probitnonmono)A shows how the full and half $P$-curve tests respond to this increase in the evidence. The shaded regions show where the test is statistically significant by Simonsohn et al's (2015) compound rule, and the shading color shows why. Before the new point reaches the half $P$-curve boundary, it can increase the evidence in the full $P$-curve. When the full $P$-curve's $p_{e,\cdot}$ drops below 0.1, both the half and full $P$-curve are less than 0.1, triggering Simonsohn et al's (2015) compound rule.
+
+However, when the new test statistic crosses the half $P$-curve boundary, all other evidence in the half $P$-curve is negated and the half $P$-curve's $p_{e,\cdot}$ increases to 1. Thus the compound procedure no longer indicates rejection of the null hypothesis. As the test statistic increases, it again begins to contribute evidence to the half $P$-curve and eventually the compound rule indicates rejection. The half $P$-curve criterion leads to moves from nonrejection, to rejection, back to nonrejection, then back to rejection again in spite of an steady increase in the evidence away from the significance threshold $\alpha_{pc}$.
+
+This behaviour is especially strange considering the intention of the compound procedure: to help make the procedure robust to "$p$ hacking". As Simonsohn et al. (2015) make clear, $p$ hacking to smaller $p$ values is more difficult; a nonmonotone procedure, then, penalises a set for containing a value that is *less* consistent with $p$ hacking when it crosses the half $P$-curve boundary.
+
+Figure \@ref(fig:probitnonmono)B shows the rejection regions of the compound test procedure when two new data points are added instead of one.  As the arrow shows, it is possible to increase the two data values and change decisions five times along the way. More changes are possible when taking into account larger numbers of data points changing, though higher-dimensional spaces are difficult to visualize.
+
+Can the half $P$-curve procedure be rescued by returning to the logarithmic combination procedure, which is less sensitive at the boundary? No; the log method is less sensitive, but still produces a non-monotone test procedure due to the half $P$-curve boundary. We leave this demonstration to the Supplement.
+
+One could argue that the $P$-curve's truncation at $0.05$ causes the same kind of nonmonotonicity, even without applying a compound decision rule. Imagine a set of hypothetical $p$ values yielding a statistically significant test $EV^*$. Consider adding a new point to the set. A new hypothetical $p$ value just above 0.05 is clearly some evidence, and a hypothetical $p$ value just below 0.05 cannot represent less evidence (i.e., $p$ hacking cannot *reduce* the evidence from the un-$p$-hacked data). A hypothetical new $p$ value just *above* 0.05 would be completely ignored, leading to the same significant $EV^*$ test as without that new value. A new hypothetical $p$ value just *below* 0.05 would negate the evidence in the rest of the set, causing $P$-curve users to doubt the whole set. The hard threshold of the $P$-curve leads to a fundamental nonmonotonicity, even without their compound decision rule.
+
+
+

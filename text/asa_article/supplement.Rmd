@@ -1,0 +1,71 @@
+---
+title: 'Supplement to "On the poor statistical properties of the $P$-curve meta-analytic procedure"'
+author: "Richard D. Morey and Clintin P. Davis-Stober"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::pdf_document2:
+    citation_package: natbib
+    keep_tex: true
+bibliography: "../bib/bibfile.bib"
+header-includes: |
+  %\usepackage{xr}
+  \pdfminorversion=4
+  %\externaldocument[][nocite]{asa_paper}
+  \usepackage{amssymb,amsmath,amsthm}
+  \usepackage{enumerate}
+  \renewcommand{\thefigure}{S\arabic{figure}}
+---
+
+```{r knitr_init, include=FALSE}
+library(knitr)
+library(xtable)
+library(rmdformats)
+library(gt)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+library(paletteer)
+
+library(furrr)
+plan(multisession, workers = parallel::detectCores()-1)
+
+conflicted::conflict_prefer_all('dplyr')
+
+options(mc.cores = parallel::detectCores()-1)
+
+#pp_opts_out$set(pp_init_out("plain"))
+
+#ppr = pubprint:::style.apa.p.value
+
+#x2pr = function(x,df=1)
+#  pubprint:::style.apa.numeric(x, name = "X^2", inbracket = as.character(df))
+
+#npr = function(x,name = NULL)
+#  pubprint:::style.apa.numeric(x, name)
+
+
+here::here('R_utility/') |>
+  dir(pattern='*.R', full.names = TRUE, include.dirs = FALSE) |> 
+  purrr::walk(source)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+
+load('../sections/fig_values.Rda')
+```
+
+```{r child='../sections/99_appendix.Rmd'}
+```
+
+\newpage
+
+# References
+

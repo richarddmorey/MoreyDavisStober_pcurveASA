@@ -1,0 +1,116 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+## Power estimation
+
+\label{powerEstimation}
+
+Within the official $P$-curve app, the authors provide a "power estimation" section using same basic logic as the tests $EV^*$ and $LEV^*$. Their method is not documented in the $P$-curve papers, but inspection of the code reveals the logic. It is best to regard this not as "power estimation" but rather an estimate of an "overall" noncentrality parameter transformed to a standardized $(0,1)$ space using a corresponding CDF.
+
+Suppose $X_i$ ($i=1,\ldots,K$), represent $K$ truncated noncentral $\chi^2_1(\lambda,t_\alpha)$ variates. Then 
+\[
+\Phi^{-1}\left(\frac{F_{\lambda}(X_i) - F_{\lambda}(t_\alpha)}{1-F_{\lambda}(t_\alpha)}\right) \sim \text{Normal}(0,1).
+\]
+where $F_\lambda$ is the CDF of the noncentral $\chi^2_1(\lambda)$ distribution (nothing in this section depends on this particular assumption; we make it for demonstration). Simonsohn et al. choose a noncentrality parameter $\lambda^*$ that yields:
+\[
+\sum_{k=1}^K\left[\Phi^{-1}\left(\frac{F_{\lambda^*}(X_i) - F_{\lambda^*}(t_\alpha)}{1-F_{\lambda^*}(t_\alpha)}\right)\right] = 0
+\]
+One way to think about $\lambda^*$ is in terms of test $LEV^*$: it is the null $\lambda'$ we would choose for test $LEV^*$ that would yield an $LEV^*$ test statistic of $Z=0$, a kind of estimate of an overall $\lambda$. Then, $q^* = 1-F_{\lambda^*}(t_\alpha)$ is taken as an estimate of the studies' "power" if they were run without publication bias (and hence without the need for "correction"). 
+
+Assume there is a population $p_\lambda$ of noncentrality parameters from which independent sample values $\lambda_1, \ldots, \lambda_K$ are drawn. For each $\lambda_i$, we then draw a corresponding truncated test statistic $X_i$. The "average power" of the studies in the population is $E_\lambda\left[1-F_\lambda(t_\alpha)\right]$. We can examine the properties of $q^*$ as an estimate of the population average power. Specifically, we can examine the consistency of $q^*$ as $K\rightarrow\infty$. If the estimator is not consistent, then even arbitrarily large sets of studies may not yield estimates close to the true "average power".
+
+As $K\rightarrow\infty$, $\lambda^*\rightarrow\lambda'$ such that
+\begin{eqnarray}
+E\left[\Phi^{-1}\left(\frac{F_{\lambda'}(x_i) - F_{\lambda'}(t_\alpha)}{1-F_{\lambda'}(t_\alpha)}\right)\right] &=& 0\label{powexp0}.
+\end{eqnarray}
+where the expectation is taken over $X$ and $\lambda$. If all $\lambda_i = \lambda$ (no variability) then the estimate will be weakly consistent (proof in the Supplement). If we assume variability in the true noncentrality parameters, then the estimate is not generally consistent. Although there will be a $\lambda^*$ that yields 0 expectation in Eq. \ref{powexp0}, it needn't yield $E_\lambda[1-F_\lambda(t_\alpha)] =  1-F_{\lambda^*}(t_\alpha)$; hence, the estimator is asymptotically biased.
+
+```{r}
+eff_N = 100
+alpha = .05
+lambda_rate = .1
+```
+
+```{r}
+crit = qchisq(alpha,1,lower.tail = FALSE)
+
+marginal_power = integrate(\(lambda){
+  dexp(lambda,rate=lambda_rate)*pchisq(crit,1,lambda,lower.tail = FALSE)
+},lower = 0, upper = Inf)
+
+```
+
+As a demonstration, consider a one-sample design with a Normally distributed test statistic $z$ with mean $\delta\sqrt{N}$ and variance 1, where $N$ is an effective sample size. Assume for all studies, $N=100$ and assume that variability in the effect size such that $\lambda=\delta^2N_{eff}$ has an Exponential distribution with a scale of `r 1/lambda_rate` (we could as easily vary the sample size while keeping the effect size constant, or vary both). The corresponding distribution of $\delta$ is shown in Figure \@ref(fig:poweffsize)A. Under these assumptions, the marginal probability of observing a statistically significant effect as $K\rightarrow\infty$ is `r round(marginal_power[[1]],3)`.
+
+```{r warning=FALSE,cache=TRUE}
+E1 = Vectorize(function(x,tuning_power)
+  integrate(
+    \(lambda)
+      dexp(lambda,rate=lambda_rate)*d2015_test2(x,sqrt(lambda),tuning_power = tuning_power,k = 1,df = 1),
+      0,Inf
+      )[[1]],"x")
+
+l0 = optimise(\(l0){
+  lambda = l0 / (1-l0)
+  tuning_power = pchisq(crit,1,lambda,lower.tail = FALSE)
+  pracma::integral2(
+    \(x,lambda){
+      x*dexp(lambda,rate=lambda_rate)*d2015_test2(x,sqrt(lambda),tuning_power = tuning_power,k = 1,df = 1)
+    },
+    xmin = -10, xmax = 10, ymin = 0, ymax = 100,vectorized = FALSE
+  )$Q^2
+}, interval = c(0.001,1))
+
+lambda0 = l0$minimum/(1-l0$minimum)
+pcurve_pow = pchisq(crit,1,lambda0,lower.tail = FALSE)
+```
+
+```{r poweffsize,fig.cap='A: Demonstration distribution of effect sizes. B: Resulting distribution of the values summed in the probit power estimation procedure.',out.height=".30\\textheight",fig.width=6,fig.height=3}
+data.frame(x = seq(0,1,length.out=2048)) |>
+  ggplot(aes(x=x)) +
+  scale_x_continuous(expand=c(0,0)) +
+  scale_y_continuous(expand = expansion(mult = c(0, .1))) +
+  geom_hline(yintercept=0, color = "gray") +
+  stat_function(fun = \(x) dexp(x^2*eff_N,lambda_rate)*sqrt(x)*eff_N, geom = "polygon", color = NA, fill = "orange", alpha = 0.3) +
+  geom_function(fun = \(x) dexp(x^2*eff_N,lambda_rate)*sqrt(x)*eff_N, linewidth=1) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(colour = "black", fill=NA, linewidth=.5),
+    axis.text.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    ) +
+  ylab("Density") +
+  xlab(expression(paste('Effect size ',delta))) -> dens1
+
+data.frame(x = seq(-5,7,length.out=101)) |>
+  ggplot(aes(x=x)) +
+  scale_x_continuous(expand=c(0,0)) +
+  scale_y_continuous(expand = expansion(mult = c(0, .1))) +
+  geom_hline(yintercept=0, color = "gray") +
+  stat_function(fun = \(x) E1(x,pchisq(crit,1,lambda0,lower.tail = FALSE)), geom = "polygon", color = NA, fill = "dodgerblue", alpha = 0.3) +
+  geom_function(fun = \(x) E1(x,pchisq(crit,1,lambda0,lower.tail = FALSE)),linewidth=1 ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(colour = "black", fill=NA, linewidth=.5),
+    axis.text.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    ) +
+  ylab("Density") +
+  xlab(expression(paste('p value vs ',lambda==lambda,"* (probit trans.)"))) +
+  geom_vline(aes(xintercept=0), linetype='dashed') +
+  #geom_function(fun = dnorm, linetype=4, color = "purple", linewidth=.5) +
+  annotate("text", label="Expected value", x=0,y=0,hjust=-.2,vjust=-.2, angle=90) -> dens2
+
+dens1 + dens2 + plot_layout(axis_titles = "collect") + plot_annotation(tag_levels = 'A')
+
+```
+
+The $\lambda^*$ that meets the condition in Eq. \ref{powexp0} is $\lambda^*=`r round(lambda0,3)`$. As can be seen from the density in Figure \@ref(fig:poweffsize)B, the test statistic has expectation 0, but is not normally distributed; it has a longer right tail. The method had no chance of arriving at the correct answer: the $P$-curve only uses the mean of the test statistic distribution, not the whole distribution, implicitly assuming normality. Any situation more complicated than a single $\lambda$ value will be effectively impossible for the procedure. The estimated power is `r round(pcurve_pow,3)` which is `r round((pcurve_pow-marginal_power[[1]])/marginal_power[[1]]*100)`% larger than it should be. Note that this bias is asympotic: the estimator is wildly inconsistent. Note also that this estimate depends critically on the probit transformation; other methods (e.g. based on $LEV$) will yield different "power estimates", even asymptotically.
+
+In a discussion of the use of a related $P$-curve method to estimate effect sizes, the $P$-curve authors [@simmonsPcurveHandlesHeterogeneity2018] claim that the $P$-curve can estimate average "power" even when there is heterogeneity in effect sizes. What explains the discrepancy between our demonstration that it fails even in the large sample limit, and their claim that heterogeneity poses no problem for the $P$-curve? In short, their argument was based only on seven simulations and no formal analysis. One can replicate our demonstration with their own code, suggesting that they simply did not find a simulation violating their intuition. This shows the downside of relying solely on simulation to support a method: it is limited by the simulator's imagination and confirmation bias. Formal analysis is harder, but can more clearly define a method's limits.
+
+

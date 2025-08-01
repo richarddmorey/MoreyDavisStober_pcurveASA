@@ -1,0 +1,12 @@
+Result.num,Index of the paper in the relevant Web of Science search 
+Paper,Indentifier for the paper (typically a DOI)
+i,Index of the p-curve result in the paper; some papers include more than one p curve result
+k,Number of significant results entered into the p curve
+EV.Z,Z value for test EV*
+EV.p,p value for test EV*
+LEV.Z,Z value for test LEV*
+LEV.p,p value for test LEV*
+first_author,First author's last name
+year,Year of publication
+title,Title of paper
+container.title,Name of journal

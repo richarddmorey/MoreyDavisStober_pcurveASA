@@ -1,0 +1,233 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+### Inadmissibility
+
+Although the sensitivity we outlined in the previous section looks objectionable, it raises a question: *how much sensitivity is too much?* Simonsohn et al's (2015) changed from the log to the probit transformation simply because they they preferred the answers from the probit transformation. This arbitrariness is objectionable, but if we merely object to the sensitivity, we have not done much better. We must examine the tests more closely to understand whether the sensitivity is a symptom of some deeper issue with how the test is using the data.
+
+If we assume under the null hypothesis that $p$ values have a uniform distribution, then we can choose any inverse CDF as a transformation; under the null, the transformation will have the corresponding distribution. Choosing a family of distributions that is closed under summation, such as $\chi^2$ (the log method) or Normal (the probit method) ensures that we can easily determine the null distribution. Thus, in the applied meta-analytic literature, combination procedures are chosen mostly for this particular convenience, along with heuristics about how these methods weight $p$ values [@Abelson:1995].
+
+Since @Birnbaum:1954 [see also @matthesTestsCompositeHypotheses1967], however, it has been known that there is much more to the choice of transformation for meta-analytic combinations. Understanding the distribution under the null hypothesis is not enough; a transformation must also be tailored to the test statistics in a way that respects their distribution under alternative noncentrality parameters. Some transformations yield inadmissible tests: their power function is dominated by some other choice of transformation for *all* alternatives. Birnbaum showed that for exponential families, a necessary and sufficient condition for admissibility is convexity of the acceptance region in the test statistic. @mardenCombiningIndependentNoncentral1982 later proved that convexity is also necessary and sufficient for noncentral $\chi^2$ distributions, and we extend his proof to truncated noncentral $\chi^2$ distributions as used by the $P$-curve procedures (see Supplement).
+
+
+
+```{r test1acc2, fig.cap = 'Acceptance regions for tests $EV$ and $EV^*$ when $K=2$. Note that the acceptance region for test $EV^*$ is concave.'}
+alpha_bound = .05
+alpha_test = .05
+zt = qnorm(alpha_test) # test statistic for EV*
+xt = qchisq(alpha_test, 4, lower.tail = FALSE)
+max_x = 16
+min_x = qchisq(1-alpha_bound,1)
+
+tibble(
+  x1 = seq(min_x+.0000001,max_x,length.out = 4096),
+  x2 = qchisq(alpha_bound * exp(-xt/2 - log(pchisq(x1,1,lower.tail = FALSE)) + log(alpha_bound)),1,lower.tail=FALSE),
+  x2_star = qchisq(alpha_bound * pnorm(zt * sqrt(2) - qnorm(pchisq(x1,1,lower.tail = FALSE)/alpha_bound)),1,lower.tail = FALSE)
+) |>
+  mutate(
+    x2 = case_when(
+      x2 < min_x ~ NA,
+      is.nan(x2) ~ NA,
+      TRUE ~ x2
+    )
+  ) |>
+  tidyr::pivot_longer(
+    cols = c(x2,x2_star),
+    names_to = 'test', values_to = 'x2'
+  )-> setup_df
+
+setup_df |>
+ggplot(aes(x=x1,y=x2,group=test, color = test, fill=test)) +
+  geom_line() +
+  geom_ribbon(aes(x=x1,ymax=x2),ymin=0,alpha=0.3) +
+  scale_x_continuous(
+    name = expression(X[1]),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                        name=expression(paste(X[1]," p value")),
+                        breaks = c(.04,.025,.01,.001,.0001),
+                        labels = prettyNum(c(.04,.025,.01,.001,.0001),scientific=FALSE)
+                        )
+    ) +
+  scale_y_continuous(
+    name = expression(X[2]),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                        name=expression(paste(X[2]," p value")),
+                        breaks = c(.04,.025,.01,.001,.0001),
+                        labels = prettyNum(c(.04,.025,.01,.001,.0001),scientific=FALSE)
+                        )
+  ) +
+  scale_color_brewer(type = 'qual',
+    name = 'Test',
+    labels = c('EV (log)','EV* (probit)')
+  ) +
+  scale_fill_brewer(type = 'qual',
+    name = 'Test',
+    labels = c('EV (log)','EV* (probit)')
+  ) +
+  coord_fixed(
+    xlim = c(qchisq(1-alpha_bound,1), 16),
+    ylim=c(qchisq(1-alpha_bound,1), 16),
+    expand=FALSE
+    ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x.top = element_text(angle=90,hjust=0,vjust=.5,size=6),
+    axis.text.y.right = element_text(vjust=.5, size = 6),
+    axis.ticks.x.top = element_line(),
+    axis.ticks.y.right = element_line(),
+    axis.title.x.top = element_text(size=8),
+    axis.title.y.right = element_text(size=8),
+    ) 
+  
+```
+
+
+Figure \@ref(fig:test1acc2) shows the acceptance regions for tests $EV$ and $EV^*$. Test $EV^*$'s acceptance region is concave, not convex, and must be so for all $K$ owing to the probit transform. Because $\lim_{p\rightarrow 1}\Phi^{-1}(p)=\infty$, a value of $p_i$ close enough to $\alpha_{pc}$ can always negate *any amount* of evidence from the other $K-1$ studies. Indeed, this issue is in play in Section \ref{sensitivity-at-the-criterion}; even more extreme examples could be constructed with a single suitably small $p$ value. The acceptance region has nonzero volume along each of the $k$ rays from the "origin" $(t_\alpha,\ldots,t_\alpha)$ and cannot be convex for any $K$.
+
+Test $EV$'s acceptance region, on the other hand, will be approximately bounded by a simplex due to the exponential tail of the $\chi^2_1$ distribution. Adapting Marden's proof to the $P$-curve procedures reveals that the probit transform yields an inadmissible test when combining $\chi^2$ test statistics, but the log transform is admissible.
+
+One of the properties of a convex acceptance region is that a single large value in any of the $X_i$ values can guarantee a rejection. Test $EV^*$, though, was specifically engineered to be "robust to extreme results" through the switch to the probit transform [@Simonsohn:etal:2015, p. 1149]. But any test with a convex acceptance region---any *admissible* test---will have precisely the property that Simonsohn et al object to: sensitivity to large, individual $X_i$ values. All symmetric admissible tests of size $\alpha$ must reject for values when one $X_i$ is beyond some minimum value. In engineering out a reasonable property of the test, they have produced a test $EV^*$ that is inadmissible and inappropriately sensitive to *small* values of $X_i$. Indeed, it is hard to see why a test of the hypothesis that "all $\lambda_i=0$" should *not* reject if one of the test statistics is large enough.
+
+Unfortunately, simply knowing that a test is inadmissible does not tell us which other test dominates it; it also does not tell us how the test will perform against other tests, including admissible ones. It is not the case that every admissible test will dominate every inadmissible test. We should therefore compare power curves across tests to see when, in particular, the inadmissible test might be failing to capture the information in the data.
+
+Inspection of the acceptance regions in Figure \@ref(fig:test1acc2) and previous work with non-truncated $\chi^2$ variables [@koziolCombiningIndependentChiSquared1978] suggests that the best case scenario for test $EV^*$ will be when all studies have the same noncentrality parameter. If the studies are heterogeneous, on the other hand, the power of test $EV^*$ would be expected to suffer because its acceptance region over-weights test statistics near the significance criterion. Figure \@ref(fig:powerev1)A and B show power curves that confirm this intuition. In all cases, the power for test $EV^*$ is lower than test $EV$'s; in the heterogeneous case, test $EV^*$'s power is dramatically lower. Figure \@ref(fig:powerev1)C shows that the power reduction is still substantial when several studies (in this case, four) have a moderate effect size and the others are null.
+
+```{r powerev1, fig.cap='Power of tests $EV$ and $EV*$. A: All $K$ studies $\\lambda=1$. B: $K-1$ studies have $\\lambda=0$, and 1 study has $\\lambda=36$ (equivalent to $\\delta=0.6$ if $N_{eff}=100)$. C: $K-4$ studies have $\\lambda=0$, and 4 studies have $\\lambda=8$ (equivalent to $\\delta=.28$ if $N_{eff}=100$).', cache=TRUE,fig.height=6, out.height=".35\\textheight"}
+
+# lambda's are squared with respect to mu, so take square root when defining mu
+
+expand.grid(mu1=sqrt(1), k1=1:30, mu2=0, k2=0, test = c("2015","2014"),stringsAsFactors = FALSE) |>
+  mutate(
+    sumk = k1 + k2,
+    n = 50,
+    delta = mu1/sqrt(n/2),
+    pow = pbmcapply::pbmcmapply(
+        FUN = power_test1, 
+        mu1 = mu1, 
+        k1 = k1, 
+        mu2 = mu2, 
+        k2 = k2, 
+        test = test)
+  ) -> power_curve
+
+ggplot(power_curve, aes(x = sumk, y = pow, group = test, color = test, linetype = test)) +
+  geom_line() +
+  scale_y_continuous(
+    name = 'Power',
+    limits = c(0,1), 
+    breaks = seq(0,1,.2),
+    expand=c(0,0)
+  ) +
+  scale_x_continuous(
+    name = expression(paste('Total studies K')),
+    expand=c(0,0)
+  ) +
+  scale_color_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)")
+  ) +
+  scale_linetype_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)")
+  ) +
+  geom_hline(yintercept = 0.05, linetype = 'solid', color = "black", alpha = .5) +
+  annotate('text',y=.05,x=Inf,hjust=1,vjust=-0.2 ,label = expression(alpha)) +
+  theme_minimal() -> g1
+
+expand.grid(mu1=0, k1=1:29, mu2=sqrt(36), k2=1, test = c("2014","2015"),stringsAsFactors = FALSE) |>
+  mutate(
+    sumk = k1 + k2,
+    n = 50,
+    delta = mu1/sqrt(n/2),
+      pow = pbmcapply::pbmcmapply(
+        FUN = power_test1, 
+        mu1 = mu1, 
+        k1 = k1, 
+        mu2 = mu2, 
+        k2 = k2, 
+        test = test)
+  ) -> power_curve
+
+ggplot(power_curve, aes(x = sumk, y = pow, group = test, color = test, linetype= test)) +
+  geom_line() +
+  scale_y_continuous(
+    name = 'Power',
+    limits = c(0,1), 
+    breaks = seq(0,1,.2),
+    expand=c(0,0)
+  ) +
+  scale_x_continuous(
+    name = 'Total studies K',
+    expand=c(0,0)
+  ) +
+  scale_color_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)")
+  ) +
+  scale_linetype_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)")
+  ) +
+  geom_hline(yintercept = 0.05, linetype = 'solid', color = "black", alpha = .5) +
+  annotate('text',y=.05,x=Inf,hjust=1,vjust=-0.2 ,label = expression(alpha)) +
+  theme_minimal() -> g2
+
+
+expand.grid(mu1=0, k1=1:29, mu2=sqrt(8), k2=4, test = c("2014","2015"),stringsAsFactors = FALSE) |>
+  mutate(
+    sumk = k1 + k2,
+    n = 50,
+    delta = mu1/sqrt(n/2),
+      pow = pbmcapply::pbmcmapply(
+        FUN = power_test1, 
+        mu1 = mu1, 
+        k1 = k1, 
+        mu2 = mu2, 
+        k2 = k2, 
+        test = test)
+  ) -> power_curve
+
+ggplot(power_curve, aes(x = sumk, y = pow, group = test, color = test, linetype= test)) +
+  geom_line() +
+  scale_y_continuous(
+    name = 'Power',
+    limits = c(0,1), 
+    breaks = seq(0,1,.2),
+    expand=c(0,0)
+  ) +
+  scale_x_continuous(
+    name = 'Total studies K',
+    expand=c(0,0)
+  ) +
+  scale_color_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)")
+  ) +
+  scale_linetype_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)")
+  ) +
+  geom_hline(yintercept = 0.05, linetype = 'solid', color = "black", alpha = .5) +
+  annotate('text',y=.05,x=Inf,hjust=1,vjust=-0.2 ,label = expression(alpha)) +
+  theme_minimal() -> g3
+
+
+(g1 + annotate("text",label="A",x=-Inf,y=Inf,hjust=0,vjust=1,size=6)) /
+(
+  (g2 + annotate("text",label="B",x=Inf,y=Inf,hjust=1,vjust=1,size=6)) +
+  (g3 + annotate("text",label="C",x=Inf,y=Inf,hjust=1,vjust=1,size=6))
+) + plot_layout(guides = "collect") & theme(legend.position = "bottom") 
+```
+
+We want to stress, however, that our main complaint is not about low power *per se*: rather, the lower power from inadmissibility is a sign that the test is not using information in the data regarding the hypotheses being tested. Power is an average property of a test; we would also like for a test to yield reasonable results for particular data sets we might observe. Test $EV^*$ has had a reasonable property---the sensitivity to a few large values---engineered out, and thus its power suffers against other tests even in cases where there are *not* individual large values. The probit transform exaggerates negative evidence and attenuates positive evidence, so it is not a surprise that its power suffers.
+
+#### Extension to $F$ statistics
+
+Simonsohn et al. (2014, 2015) square $t$ statistics to obtain $F_{1,\nu_2}$ test statistics, and transform Pearson correlations to $t$ test statistics that are then squared. Marden (1982) showed that for noncentral $F$ statistics, probit combinations are always inadmissible (see Supplement for our extension to truncated $F$ statistics). He also showed, however, that Fisher's method of combining logarithms is inadmissible with noncentral $F$ statistics when the numerator degrees of freedom are less than 2, which rules out squared $t$ statistics. This implies that that for some $\alpha_{pc}$, test $EV$ will also be inadmissible; however, admissibility conditions for $EV$ with $t$ statistics are not known. We show the dramatic power implications for $F$ statistics analogous to the ones for $\chi^2$ statistics in the Supplement.
+
+The attraction of particular transformations is that they are supposed to be "nonparametric" [@mardenCombiningIndependentNoncentral1982] and thus widely applicable to many underlying test statistics. But if different test statistics require different transformations prior to summing to respect the evidence, this raises the question of whether one should combine them as the $P$-curve does. Most of the statistical literature on meta-analytic combination methods focuses on summing statistics in the same family, not *across* families. More theoretical work in this area is necessary before one can have confidence when combining across families.
+
+

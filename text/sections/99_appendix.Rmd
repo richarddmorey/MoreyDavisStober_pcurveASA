@@ -1,0 +1,552 @@
+---
+editor_options: 
+  chunk_output_type: console
+---
+
+# Use of the $P$-curve methods in the literature
+
+```{r}
+
+# total papers in citation list, as of July 2024
+npapers_cite = 186
+
+here::here('data/pcurve_review_with_meta.csv') |>
+  read.csv() |>
+  mutate(
+  # across(matches('.p$'), ~stringr::str_remove_all(.,'[^0-9.]{1,}') |> as.numeric()
+  ) -> pcurve_use_df0
+
+pcurve_use_df0 |>
+  group_by(has_results=!is.na(EV.p) | !is.na(LEV.p), k_known=!is.na(k)) |>
+  summarise(n = n()) -> n_valid
+
+pcurve_use_df0 |>
+  mutate(both_missing = is.na(EV.p) & is.na(LEV.p)) |>
+  filter(!both_missing  & !is.na(k) ) -> pcurve_use_df
+
+
+pcurve_use_df |>
+  group_by(Paper) |>
+  summarise(n = n()) |>
+  nrow() -> npapers1
+
+pcurve_use_df |>
+  group_by(EVsig=EV.p<=.05,LEVsig=LEV.p<=.05) |>
+  summarise(
+    n=n(),
+    k_med = median(k),
+    k_range = glue::glue("({min(k)}-{max(k)})")
+    ) |>
+  mutate(p_giv_EV = n / sum(n)) |>
+  ungroup() |>
+  mutate(
+    p_marg = n / sum(n),
+    across(matches('sig'), ~ case_when(
+      is.na(.) ~ 'Did not report',
+      . ~ '$p<0.05$',
+      TRUE ~ '$p\\geq0.05$')
+    )
+    ) -> pcurve_use_summary
+
+qk = summary(pcurve_use_df$k)[-4]
+names(qk) = c("Min.","Q1","Median","Q3","Max.")
+```
+
+
+Test $EV^*$ is by far the most-used test of those we consider. In order to better understand how the method is used, we reviewed all articles that cited @Simonsohn:etal:2015: `r npapers_cite `, as of July 2024. After removing all papers that did not report a $P$-curve analysis or for which the methods of the analyses were not clear (e.g. did not report the result, or did not report the number of studies in the meta-analysis), we found `r sum(pcurve_use_summary$n)` $P$-curve analyses across `r npapers1` papers. Characteristics of these studies are shown in Table 1 of the main manuscript.
+
+Many authors using the probit method cite only @Simonsohn:etal:2014 outlining the old method, in spite of using Simonsohn et al.'s online app that uses the new 2015 probit-based method. Our goal is not a comprehensive review, so we did not review those papers (of which there are nearing 1,000). Citations to @Simonsohn:etal:2015 will be enough to get a sense of how the method is used.
+
+```{r}
+k_by_sig = tapply(pcurve_use_df$k,pcurve_use_df$EV.p<.05,median)
+```
+
+The median number of studies entered into a $P$-curve analysis was `r qk[3]` (`r paste(trimws(names(qk[-3])),": ",qk[-3],sep='') |> paste0(collapse='; ')`). The vast majority of $EV^*$ tests (`r sum(pcurve_use_summary$n[4:6])`; `r round(sum(pcurve_use_summary$p_marg[4:6])*100,1)`%) were significant. The studies yielding a nonsigificant test $EV^*$ tended to have a smaller number of studies (median: `r k_by_sig[1]`) than those which were statistically significant for test $EV^*$ (median: `r k_by_sig[2]`), which would be expected given the power benefits of having more studies in the set.
+
+Only a small minority of $P$-curve analyses yielded a significant $LEV^*$ test in the absence of a statistically significant $EV^*$ test (`r sum(pcurve_use_summary$n[2])`; `r round(sum(pcurve_use_summary$p_marg[2])*100,1)`%). Several $P$-curve analyses yielded significant results for both tests (`r sum(pcurve_use_summary$n[5])`; `r round(sum(pcurve_use_summary$p_marg[5])*100,1)`%), suggesting that these studies somehow had "evidential value" and lacked it at the same time. These numbers show why the $P$-curve's primary use is to argue that a set of studies has "evidential value": very rarely is there any other outcome, at least in the published literature considered by $P$-curve users.
+
+# Proofs of admissibility and inadmissibility. 
+
+\nocite{waldStatisticalDecisionFunctions1950,mardenCombiningIndependentNoncentral1982}
+
+Our proofs in this appendix draw heavily on Marden (1982). We find that test $EV$ is admissible with $\chi^2$ test statistics and $F$ statistics whose numerator degrees of freedom are $\geq2$. The conditions for admissibility of test $EV$ with $F(1,\nu_2)$ test statistics is an open question. For values of $\alpha_{pc}$ close to 1 it is inadmissible, but it is possible that it is admissible for smaller values of $\alpha_{pc}$.
+
+The proof in Section \ref{appendixX2} can be roughly outlined as follows: in the first part, it is proven that all Bayes tests have convex acceptance regions. Since Bayes tests form a complete class, tests with convex acceptance regions form a complete class.  Therefore all admissible tests have convex acceptance regions. In the second part, it is proven that all tests with convex acceptance regions are admissible. Thus, for noncentral $\chi^2$ statistics, a convex acceptance region is necessary and sufficient for admissibility.
+
+The proof in Section \ref{appendixF} follows a similar outline, but with separate  necessary and sufficient conditions for admissibility.
+
+It follows from the proofs that test $EV^*$ is inadmissible for $\chi^2$ statistics, and inadmissible for $F$ statistics when $K>2$. Hence, the test is inadmissible for any situation in which $P$-curve analysis would be used.
+
+## Noncentral $\chi^2$
+
+\label{appendixX2}
+
+Let $\mathbf X = (X_1,\ldots,X_K)$ be a sequence of noncentral $\chi^2$ variates, and the sample space of $\mathbf X$ is ${\cal X} = \mathbb{R}^{K}$. We prove here an extension of Marden (1982)'s Theorem 2.1 (p. 269), which states that for $X$, the class of tests with monotone, decreasing, convex, closed acceptance regions in $\mathbf X$ form a minimal complete class.
+
+Let $f_\lambda(x;\nu)$ and $F_\lambda(x;\nu)$, $x>0$, denote the density and cumulative density functions of a noncentral $\chi^2$ variate with $\nu$ degrees of freedom and noncentrality parameter $\lambda$, respectively. Let
+\[
+g_\lambda(x;\nu,t_\alpha) = \frac{f_\lambda(x;\nu)}{1-F_\lambda(t_\alpha;\nu)}, x>t_\alpha
+\]
+denote the density function of the left-truncated noncentral $\chi^2$ variate with $\nu$ degrees of freedom and noncentrality parameter $\lambda$. Define $G_\lambda(x;\nu,t_\alpha)$ as the corresponding cumulative distribution function.
+
+Let $\mathbf\Omega_0 = \{\lambda_1=0,\ldots,\lambda_K=0\}$ and $\mathbf\Omega_A=\mathbf\Omega_0^c$.
+
+The following definitions are chosen to be consistent with Marden (1982). We denote test functions on $\cal{X}$ as $\phi(\mathbf{x})$, and the risk function $r$ is 
+
+$$
+r_\lambda(\phi)=\left\{\begin{array}{ll}
+E_0(\phi) & \text{if}\,\mathbf\lambda\in\mathbf\Omega_0,\\
+1-E_\lambda(\phi) &\text{if}\,\mathbf\lambda\in\mathbf\Omega_A,\\
+\end{array}\right.
+$$
+Let $\cal C$ be the class of sets $C \subseteq \cal{X}$ that are (i) monotone decreasing and (ii) closed and convex in $\cal X$. Then let
+
+$$
+\Phi=\left\{\phi \mid \phi=1-I_{C}, C \in \cal{C}\right\} 
+$$
+
+and
+
+$$
+\bar{\Phi}=\{\bar{\phi} \mid \bar{\phi}=\phi \text { a.e. }[\mu], \phi \in \Phi\}
+$$
+where $I_{B}$ is the indicator function of the set $B \subseteq \cal{X}$, and $\mu$ is Lebesgue measure on $\cal{X}$. 
+
+The following theorem holds. The proof follows from Marden's proof of his Theorem 2.1 with slight modifications. We follow Marden's division of the proof into two parts: Part I, which shows that $\bar \Phi$ is complete; and Part II, which shows that all $\phi \in \Phi$ are admissible.
+
+\begin{theorem}[Complete class for truncated noncentral $\chi^2$]
+$\bar{\mathbf\Psi}$ is a minimal complete class for of tests for meta-analytic combinations $\chi^2_{\nu_i}(\lambda_i, t_\alpha)$ test statistics truncated below at $t_\alpha$. \label{thm1}
+
+\end{theorem}
+\begin{proof}
+
+Let $R_\lambda(\mathbf{x})$ denote the likelihood ratio for testing the null hypothesis that all $\lambda_i=0$. 
+
+\begin{eqnarray*}
+R_\lambda(\mathbf{x}) &=& \prod_{i=1}^K\frac{g_\lambda(x_i;\nu_i)}{g_0(x_i;\nu_i)}\\
+&=&\prod_{i=1}^K\frac{1-F_0(t_\alpha;\nu_i)}{1-F_{\lambda_i}(t_\alpha;\nu_i)}\frac{f_{\lambda_i}(x_i;\nu_i)}{f_0(x_i;\nu_i)}\\
+&=&c\prod_{i=1}^K\frac{f_{\lambda_i}(x_i;\nu_i)}{f_0(x_i;\nu_i)}\\
+&=&c R'_\lambda(\mathbf{x})
+\end{eqnarray*}
+
+where $c=\prod_{i=1}^K(1-F_0(t_\alpha;\nu_i))/(1-F_{\lambda_i}(t_\alpha;\nu_i))$ is a constant with respect to $\mathbf x$, and $R'_\lambda(\mathbf{x})$ is the likelihood ratio testing the same null hypothesis for nontruncated $\chi^2_\nu(\lambda)$ values. That is, the likelihood ratios $R$ and $R'$ only differ by constant factor.
+
+Part I: $\bar \Phi$ is complete. Marden (1982; Theorem 2.1, p. 270) showed that $R'$ is convex and monotone in $\mathbf x$. Hence $R$ is also convex and monotone in $\mathbf x$. By \citet{eatonCompleteClassTheorem1970}, Theorem 3.1, tests with acceptance regions in $\cal C$ and their limits form a complete class.
+
+Part II: All $\phi \in \Phi$ are admissible. Suppose that $\phi$ and $\psi$ are two test functions. Following Marden, define $D(B)$ to be the set of all test functions $\phi$ such that $\phi=1$ a.e. on $B^{c}$ for a set $B$. Due to the proportionality of likelihood ratios, Marden's Lemma 2.2 applies, which states that if $C\in \cal C$, $\phi \in D(C)$ and $\psi \notin D(C)$, then there exists $\mathbf\lambda\in \Omega_A$ such that $r_\lambda(\phi)<r_\lambda(\psi)$. If $E_{0}(\phi)=E_{0}(\psi)$ (both tests have the same Type I error rate) and $\mu(\{\phi \neq \psi\})>0$ (they are not essentially the same test), there is some $\mathbf \lambda$ where $\phi$ dominates $\psi$. Therefore, $\phi$ is admissible.
+
+\end{proof}
+
+Proof that test $EV^*$ is inadmissible with noncentral $\chi^2$ test statistics immediately follows, since it obviously has nonconvex acceptance regions in $\mathbf x$.  We now prove the admissibility of test $EV$. We use Marden's proof of the admissibility of the same test with nontruncated test statistics.
+
+\begin{theorem}[Admissibility of test $EV$, truncated noncentral $\chi^2$]
+Test $EV$ is an admissible test when used to combine truncated noncentral $\chi^2_\lambda(\nu,t_\alpha)$ test statistics.
+\label{thm2}
+
+\end{theorem}
+\begin{proof}
+The test statistic for test $EV$ is
+
+\begin{eqnarray*}
+\sum_i\log p_{e,i} &=& \sum_i \log(p_i/\alpha_{pc})\\
+                   &=&\sum_i\log p_i - K\log(\alpha_{pc}).
+\end{eqnarray*}
+
+But this is simply the test statistic when combining nontruncated random variables, plus a constant. The borders of the acceptance region must therefore be identical within the $[t_\alpha,\infty)^K$ space. Marden (1982) shows that the acceptance region with nontruncated $\chi^2$ test statistics is convex and monotone (p. 271); therefore, the truncated version of the test must also have convex and monotone acceptance regions. By Theorem \ref{thm1}, the test is admissible.
+
+\end{proof}
+
+## Noncentral $F$
+
+\label{appendixF}
+
+Marden (1982) gives separate necessary and sufficient conditions for the admissibility of tests combining noncentral $F$ statistics. We restate them here because we will use them to prove results about truncated $F$ test statistics. Let 
+
+\begin{eqnarray*}
+y &=& \frac{\frac{\nu_1}{\nu_2}F}{1+\frac{\nu_1}{\nu_2}F},\\
+y^* &=& y^r 
+\end{eqnarray*}
+
+where $F$ is an $F$ test statistic with $\nu_1,\nu_2$ degrees of freedom,  and $r$ is a constant function of $\nu_1$ and $\nu_2$ given in Marden (1982, p. 272, 4.2; see also Marden & Perlman, 1982). Note that $y$ has a $\text{Beta}(\nu_1/2,\nu_2/2)$ distribution when $\lambda=0$. Marden showed that convexity of the acceptance region in $y$ is a sufficient condition for admissibility, and convexity of the acceptance region in $y^*$ is a necessary condition.
+
+\nocite{mardenMinimalCompleteClass1982}
+
+Marden showed that combining $F$ statistics with logarithms when $\nu_1\geq 2$ leads to an admissible test (p. 272) by showing that the acceptance region is convex in $y$.  By the same argument as in Theorem~\ref{thm2} above, test $EV$ is also admissible when $\nu_1\geq 2$. 
+
+Marden also shows that if $\nu_1=1$ for at least one of the test statistics, the test is inadmissible. A similar argument to Theorem \ref{thm2} and the continuity of $u$ can be used to show that for *some* $\alpha_{pc}<1$, test $EV$ is inadmissible when $\nu_1=1$. It is an open question whether there are values of $\alpha_{pc}$ and $\nu_2$ that will yield admissible $EV$ tests when some $\nu_1=1$. 
+
+\begin{theorem}[Inadmissibility of test $EV^*$, noncentral $F$]
+Test $EV^*$ is an inadmissible test when used to combine $K>2$ truncated noncentral $F$ test statistics.
+\label{thm3}
+\end{theorem}
+\begin{proof}
+By the same argument in \ref{thm1}, the likelihood ratio for truncated $F$ statistics is proportional to that for nontruncated $F$ test statistics. Marden (1982) shows that the acceptance region formed by the likelihood ratio contours will be convex and monotone in $y^*$. Hence, if a test does not have a convex acceptance region in $y^*$, it cannot correspond to a Bayes rule and cannot be admissible by Wald's (1950) theorem.
+
+It remains to be shown that the acceptance region for test $EV^*$ is nonconvex. Let $u$ be the function used to transform the test statistic for combination by summing such that the test is equivalent to $\sum_i u(y_i^*)>c$ (i.e., in this case $u(y^*)=-\Phi^{-1}(p((y^*)^{1/r}))$ where $p$ is the function yielding the $p$ value for $y$. Marden (1982, p. 274) shows that when $K>2$ a necessary condition for convexity is that for all pairs of statistics $y_k,y_\ell, k\neq \ell$ on the boundary of the acceptance region,
+
+
+\begin{eqnarray}
+u_k^{\prime \prime}\left(y_k^*\right) /\left(u_k^{\prime}\left(y_k^*\right)\right)^2 + 
+u_\ell^{\prime \prime}\left(y_\ell^*\right) /\left(u_\ell^{\prime}\left(y_\ell^*\right)\right)^2 \geq 0,\label{conv2}
+\end{eqnarray}
+
+
+For one of these terms we take the limit as $y\rightarrow t_\alpha^+$. For any $y_1$ as small as we like, we can choose $y^*_2,\ldots,y^*_K$ such that these points lie on the boundary of the acceptance region:
+
+\[
+\lim _{y \rightarrow t_\alpha^+} \frac{u^{\prime \prime}\left(y^*\right)}{\left(u^{\prime}\left(y^*\right)\right)^2}
+=\lim _{y \rightarrow t_\alpha^+} \frac{\Phi^{\prime}\left(\Phi^{-1}(p(y))\right) t(y, r)}{h(y)/\alpha_{pc}}-1=-1, t_\alpha>0 .
+\]
+where $h$ is the density function of the $\text{Beta}(\nu_1/2,\nu_2/2)$ distribution, and $t$ is as defined by Marden (1982, p. 274):
+
+$$
+t(y, s ; \nu_1, \nu_2) \equiv t(y, s)=[(\nu_1 / 2-s)(1-y)-(\nu_2 / 2-1) y] y^{-1}(1-y)^{-1}
+$$
+which is $h'(y)/h(y) - (s-1)y^{-1}$. 
+
+Expression \ref{conv2} will be negative as $y_k$ and $y_\ell$ become arbitrarily small. Hence, the acceptance region must be nonconvex in $y^*$ and test $EV^*$ is inadmissible.
+
+\end{proof}
+
+# Power implications for combining $F(1,\nu_2)$ statistics
+
+```{r}
+F_dfd = 19
+K_multiple = 4
+ncp_single = 36
+ncp_multiple = 16
+```
+
+We can demonstrate some dramatic power implications when combining $F$ statistics using the $P$-curve tests by comparing both $EV$ and $EV^*$ to an admissible test that rejects when $\sum_i^KF_i>c$ (Marden, 1982, p. 269). Figure \@ref(fig:powerev1F) shows the power of three tests on $F(1,`r F_dfd`)$ test statistics: the probit $EV^*$, the log $EV$, and a test based on the sum of the $F$ statistics.[^sumtest] Similarly as with $\chi^2_1$ statistics, the probit transformation suffers most when some of the noncentrality parameters are nonzero, and others are 0. Unlike with the $\chi^2_1$ statistics, though, the sum test outperforms the logarithmic $EV$ test, because the log transformation is not well-suited to the $F$ test statistic like it is to the $\chi^2_1$.
+
+[^sumtest]: The sum is weighted by the degrees of freedom, if they vary; see Marden, 1982, Eq. 1.16 and 1.19.
+
+```{r powerev1F, fig.cap=glue::glue('Power of tests EV, EV* on $F(1,{F_dfd})$ statistics, and a test based on the sum of the $F$ values. A: $K-1$ studies have $\\lambda=0$, and 1 study has $\\lambda={ncp_single}$. B: $K-4$ studies have $\\lambda=0$, and {K_multiple} studies have $\\lambda={ncp_multiple}$.'), cache=TRUE}
+
+expand.grid(ncp1=0, k1=1:29, ncp2=ncp_single, k2=1, test = c("2014","2015","Fsum"),stringsAsFactors = FALSE) |>
+  mutate(
+    sumk = k1 + k2,
+    pow = pbmcapply::pbmcmapply(
+      FUN = power_test1_F, 
+      ncp1 = ncp1, 
+      k1 = k1, 
+      ncp2 = ncp2, 
+      k2 = k2, 
+      df1 = 1,
+      df2 = F_dfd,
+      test = test)
+  ) -> power_curve
+
+ggplot(power_curve, aes(x = sumk, y = pow, group = test, color = test, linetype= test)) +
+  geom_line() +
+  scale_y_continuous(
+    name = 'Power',
+    limits = c(0,1), 
+    breaks = seq(0,1,.2),
+    expand=c(0,0)
+  ) +
+  scale_x_continuous(
+    name = 'Total studies K',
+    expand=c(0,0)
+  ) +
+  scale_color_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)",expression(sum(F[i])))
+  ) +
+  scale_linetype_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)",expression(sum(F[i])))
+  ) +
+  geom_hline(yintercept = 0.05, linetype = 'solid', color = "black", alpha = .5) +
+  annotate('text',y=.05,x=Inf,hjust=1,vjust=-0.2 ,label = expression(alpha)) +
+  theme_minimal() -> g1
+
+expand.grid(ncp1=0, k1=1:29, ncp2=ncp_multiple, k2=K_multiple, test = c("2014","2015","Fsum"),stringsAsFactors = FALSE) |>
+  mutate(
+    sumk = k1 + k2,
+    pow = pbmcapply::pbmcmapply(
+      FUN = power_test1_F, 
+      ncp1 = ncp1, 
+      k1 = k1, 
+      ncp2 = ncp2, 
+      k2 = k2, 
+      df1 = 1,
+      df2 = F_dfd,
+      test = test)
+  ) -> power_curve
+
+ggplot(power_curve, aes(x = sumk, y = pow, group = test, color = test, linetype= test)) +
+  geom_line() +
+  scale_y_continuous(
+    name = 'Power',
+    limits = c(0,1), 
+    breaks = seq(0,1,.2),
+    expand=c(0,0)
+  ) +
+  scale_x_continuous(
+    name = 'Total studies K',
+    expand=c(0,0)
+  ) +
+  scale_color_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)",expression(sum(F[i])))
+  ) +
+  scale_linetype_discrete(
+    name = 'Test',
+    labels = c("EV (log)","EV* (probit)",expression(sum(F[i])))
+  ) +
+  geom_hline(yintercept = 0.05, linetype = 'solid', color = "black", alpha = .5) +
+  annotate('text',y=.05,x=Inf,hjust=1,vjust=-0.2 ,label = expression(alpha)) +
+  theme_minimal() -> g2
+
+
+
+(
+  (g1 + annotate("text",label="A",x=Inf,y=Inf,hjust=1,vjust=1,size=6)) + 
+    (g2 + annotate("text",label="B",x=Inf,y=Inf,hjust=1,vjust=1,size=6))
+) + plot_layout(guides = "collect") & theme(legend.position = "bottom") 
+
+```
+
+
+# Tables of values used in figures
+
+\label{tablesOfExampleValues}
+
+These numbers have been rounded to three digits.
+
+The following values were used to construct Figure 5A and 5B in the main manuscript. The set of test statistics used to create the figure was the values below plus one (Figure 5A) or two (Figure 5B) values that were added to the set.
+
+```{r results='asis',cache=FALSE}
+format(X2_probit,digits=4) |>
+  stringr::str_remove_all(pattern = '[ \\$]') |>
+  paste0(collapse=', ') |>
+  stringr::str_wrap(width = 60) |>
+  stringr::str_replace_all('\n','\\\\\\\\\n &\\\\,\\\\phantom{\\\\{} ') |>
+  paste0('\\begin{align*}\n &\\, \\{',x0=_,'\\}\n\\end{align*}\n') |>
+  cat()
+```
+
+# Demonstration of nonmonotonicity of test $EV$
+
+\label{nonmonoAppendix}
+
+```{r}
+
+crit025 = qchisq(.025,1,lower.tail = FALSE)
+crit05 = qchisq(.05,1,lower.tail = FALSE)
+
+X2_log = qtchisq(1:9/10,tuning_power = .4) |> sort()
+
+construct_nonmono_data_2d(X2_log, test='2014', len=512) |>
+  mutate(
+    rule = 2*half_sig + both_sig
+  ) -> test2014_sig_2d
+
+log_nonmono_data = construct_nonmono_data(X2_log, test='2014')
+
+
+```
+
+In the main manuscript we demonstrated that the compound decision rule proposed by Simonsohn et al (2015) leads to a nonmonotone decisions: as the evidence is increased, one can move from rejecting to nonrejection of the null hypothesis.
+
+The following values were used to construct the figures in this section. The set of test statistics used to create the figure was the values below plus one (Figure \@ref(fig:lognonmono)A) or two (Figure \@ref(fig:lognonmono)B) values that were added to the set.
+
+```{r results='asis',cache=FALSE}
+format(X2_log,digits=4) |>
+  stringr::str_remove_all(pattern = '[ \\$]') |>
+  paste0(collapse=', ') |>
+  stringr::str_wrap(width = 60) |>
+  stringr::str_replace_all('\n','\\\\\\\\\n &\\\\,\\\\phantom{\\\\{} ') |>
+  paste0('\\begin{align*}\n &\\, \\{',x0=_,'\\}\n\\end{align*}\n') |>
+  cat()
+```
+
+We followed the same methods described in the main manuscript, adding a single test statistic (Figure \ref{fig:lognonmono}A) or two test statistics (Figure \ref{fig:lognonmono}B) to the set.
+
+```{r echo=FALSE}
+log_nonmono_data |>
+  group_by(x2) |>
+  summarise(
+    sig_reason = first(sig_reason)
+  ) |>
+  mutate(
+    new_block = sig_reason != lag(sig_reason,1),
+    new_block = if_else(is.na(new_block), TRUE, new_block)
+    ) |>
+  group_by(new_block) |>
+  mutate(
+    block = if_else(new_block == TRUE, row_number(),NA),
+    ) |> 
+  ungroup() |>
+  tidyr::fill(
+    block,.direction = 'down'
+  ) |>
+  select(x2,sig_reason,block) |>
+  mutate(
+    sig_reason = factor(
+      sig_reason, levels = c("No rejection","Half<.1,Full<.1","Half<.05","Both"),
+      ordered = TRUE
+    )
+  ) -> d_1d_log_sig
+
+log_nonmono_data |>
+  group_by(pcurve) |>
+  mutate(
+    d2 = (x2 - 5.5)^2
+  ) |>
+  filter(
+    d2 == min(d2)
+  ) |>
+  mutate(
+    p = if_else(pcurve=="full",p-.02,p+.02)  
+  ) -> line_labels_1d
+
+log_nonmono_data |>
+  ggplot(aes(x=x2,y=p,group=group,color=pcurve,linetype=pcurve)) +
+  geom_ribbon(
+    data = d_1d_log_sig,
+    aes(x=x2,ymin=0,ymax=1,fill=sig_reason,group=block),
+    alpha=.6, color=NA, inherit.aes = FALSE, show.legend=TRUE
+    ) +
+  scale_fill_manual(
+    name = 'Test result',
+    values = c("white",paletteer_d("nationalparkcolors::Acadia",3)),
+    drop = FALSE
+  ) +
+  geom_line(linewidth=1.2, show.legend = FALSE) +
+  geom_text(
+    data = line_labels_1d,
+    aes(label = tools::toTitleCase(pcurve)),
+    hjust = -.2
+  ) +
+  geom_vline(xintercept = crit05,linetype = 'dashed',color='gray') +
+  annotate('text',label='Full P-curve boundary',x=crit05,y=Inf,angle=90,hjust=1,vjust=-.2,size=2.5) +
+  geom_vline(xintercept = crit025,linetype = 'dashed',color='gray') +
+  annotate('text',label='Half P-curve boundary',x=crit025,y=Inf,angle=90,hjust=1,vjust=-.2,size=2.5) +
+  theme_minimal() +
+  geom_hline(yintercept = .1, linetype = 'dotted') +
+  annotate('text',label="0.1", x=Inf,y=.1,hjust=1.1,vjust=-.3) +
+  scale_y_continuous(name='Test EV p value') +
+  scale_x_continuous(
+    expand = expansion(add=c(.2,0)),
+    name = expression(paste('Added ',chi[1]^2,' value')),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                name=expression(paste('Added ',chi[1]^2,' p value')),
+                breaks = c(.04,.025,.01,.005,.0025),
+                labels = prettyNum(c(.04,.025,.01,.005,.0025),scientific=FALSE)
+                )
+  ) +
+  coord_cartesian(ylim=c(0,.4)) +
+  scale_color_discrete(
+    name='P-curve',labels=c('Full','Half'),
+  ) +
+  guides(linetype = "none", color = "none") +
+  theme(
+    axis.text.x.top = element_text(angle=90,hjust=0,vjust=.5,size=6),
+    axis.ticks.x.top = element_line(),
+    axis.title.x.top = element_text(size=8),
+    legend.key=element_rect(colour='black')
+  ) -> g_nonmono_log
+
+test2014_sig_2d |>
+  ggplot(aes(x=x2_1,y=x2_2,z=rule)) +
+  geom_contour_filled(breaks  = 0:5 - .5,alpha = .6) +
+  scale_fill_manual(
+    name = 'Test result',
+    values = c("white",paletteer_d("nationalparkcolors::Acadia",3)),
+    #values = c('white','lightblue','red','black'),
+    labels = c(
+      "No rejection",
+      "Half<.1,Full<.1",
+      "Half<.05",
+      "Both"
+    )
+    ) + 
+  scale_x_continuous(
+    expand = expansion(add=c(.3,0)),
+    name = expression(paste('First added ',chi[1]^2,' value')),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+                name=expression(paste('First added ',chi[1]^2,' p value')),
+                breaks = c(.04,.025,.01,.005,.0025),
+                labels = prettyNum(c(.04,.025,.01,.005,.0025),scientific=FALSE)
+                )
+
+    ) +
+  scale_y_continuous(
+    expand = expansion(add=c(.3,0)),
+    name = expression(paste('Second added ',chi[1]^2,' value')),
+    sec.axis = sec_axis(transform=~pchisq(.,1,lower.tail = FALSE), 
+            name=expression(paste('Second added ',chi[1]^2,' p value')),
+            breaks = c(.04,.025,.01,.005,.0025),
+            labels = prettyNum(c(.04,.025,.01,.005,.0025),scientific=FALSE)
+            )
+    ) +
+  annotate('text',label='Full P-curve boundary',x=crit05,y=crit025,angle=90,hjust=-0.1,vjust=-.2,size=2.5) +
+  annotate('text',label='Half P-curve boundary',x=crit025,y=crit025,angle=90,hjust=-0.1,vjust=1.2,size=2.5) +
+  annotate('text',label='Full P-curve boundary',y=crit05,x=crit025,vjust=1.1,hjust=-.2,size=2.5) +
+  annotate('text',label='Half P-curve boundary',y=crit025,x=crit025,vjust=-.2,hjust=-.2,size=2.5) +
+  geom_hline(yintercept = c(crit05,crit025), linetype = 'dashed',color='gray') +
+  geom_vline(xintercept = c(crit05,crit025), linetype = 'dashed',color='gray') +
+  theme_minimal() +
+  theme(
+    axis.text.x.top = element_text(angle=90,hjust=0,vjust=.5,size=6),
+    axis.text.y.right = element_text(vjust=.5,size=6),
+    axis.ticks.x.top = element_line(),
+    axis.ticks.y.right = element_line(),
+    axis.title.x.top = element_text(size=8),
+    axis.title.y.right = element_text(size=8),
+    legend.key=element_rect(colour='black')
+  )+
+  ggarrow::annotate_arrow(
+    x = c(4.7, 5.3), 
+    y = c(4.7, 9.6),
+    linewidth = .5,
+    lineend = 'round',
+    color='darkblue'
+  ) +
+  coord_fixed() -> g_2d_nonmono_log
+```
+
+```{r lognonmono,fig.cap='Results of Simonsohn et al\'s combined procedure with the logarithmic method, increasing a single test statsitic (A) and two test statistics (B) added to the demonstration data set. The shaded regions show when  would be statistically significant, and why. In B, the arrows show paths through the space such that both data values increase, yet the decision can change from rejection to acceptance several times. ',fig.height=5}
+(g_nonmono_log + g_2d_nonmono_log) + plot_annotation(tag_levels = 'A') + plot_layout(guides = "collect") & theme(legend.position = "bottom")              
+
+```
+
+As with the probit combination method, increasing a test statistic can cause the test result to move from rejection to nonrejection and back to rejection again, showing that the decision procedure is nonmonotone.
+
+```{r child='06_properties_ls.Rmd'}
+```
+
+# Consistency of "power" estimate with no variability in noncentrality parameter
+
+Let $x_i$ ($i=1,\ldots,$K) be a sample from a left-truncated continuous random variable with noncentrality parameter $\lambda$ whose untruncated CDF is given by $F_\lambda$ and the left-truncation point is $t_\alpha$. Let
+\[
+H(\ell;{\mathbf x}) = \frac{1}{K}\sum_{i=1}^KW^{-1}\left(\frac{F_{\ell}(x_i) - F_{\ell}(t_\alpha)}{1-F_{\ell}(t_\alpha)}\right)
+\]
+where $F$ is the CDF of the untruncated test statistic for a noncentrality parameter $\ell$ and $W$ is a CDF of an arbitrary continuous distribution $w$ whose mean and variance are denoted $\mu$ and $\sigma^2$. If $w$ is a standard normal and $W^{-1}\equiv\Phi^{-1}$, then $H$ is the probit transformed CDF of the truncated test statistic as used in test $LEV^*$. It is obvious that $E\left[H(\lambda;x_i)\right]=\mu$ and $V\left[H(\lambda;x_i)\right]=\sigma^2/K$; hence an application of Chebyshev's inequality shows that
+\[
+Pr\left(|H(\lambda;\mathbf x) - \mu| >\epsilon\right)\rightarrow 0.
+\]
+for any $\epsilon>0$ as $K\rightarrow\infty$.
+
+Let $\lambda^*$ be the $P$-curve estimate of the noncentrality parameter; that is, the value such that
+\[
+\frac{1}{K}\sum_{i=1}^KW^{-1}\left(\frac{F_{\lambda^*}(x_i) - F_{\lambda^*}(t_\alpha)}{1-F_{\lambda^*}(t_\alpha)}\right) = 
+\mu.
+\]
+Then
+\[
+Pr\left(|H(\lambda;\mathbf x) - H(\lambda^*;\mathbf x)|>\epsilon\right)\rightarrow 0.
+\]
+
+Since $H$ is continuous, this implies that
+\[
+Pr\left(|\lambda - \lambda^*| > \epsilon\right)\rightarrow 0
+\]
+by the continuous mapping theorem. Hence $\lambda^*$ is a consistent estimator of $\lambda$, and $1-F_{\lambda^*}(t_\alpha)$ is a consistent estimator of $1-F_{\lambda}(t_\alpha)$.
+
+The consistency of the $P$-curve "power estimate" when there is no variability in the noncentrality parameter is a special case of the above when $W^{-1}\equiv\Phi^{-1}$.
+
+
+
