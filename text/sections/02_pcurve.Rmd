@@ -35,9 +35,9 @@ Consider a random variable $X$ with a truncated noncentral $\chi^2_1$ distributi
 X \sim \text{noncentral}\,\chi^2_1(\lambda,t_\alpha),
 \]
 
-where $\lambda$ is the noncentrality parameter and $t_\alpha$ is a left truncation value (e.g., the critical value for the test of $\lambda=0$, $F^{-1}_{\chi^2_1}(1-\alpha_{pc})\approx 3.84$ for $\alpha_{pc}=.05$ where $F$ is a cumulative distribution function). $EV$ and $EV^*$ test the null hypothesis that $\lambda=0$ against the alternative that $\lambda>0$. Simonsohn et al (2014a) interpret a rejection as indicating that "selective reporting [is] ruled out as sole explanation for findings"/"evidential value" (p. 535).
+where $\lambda$ is the noncentrality parameter and $t_\alpha$ is a left truncation value (e.g., the critical value for the test of $\lambda=0$, $F^{-1}_{\chi^2_1}(1-\alpha_{pc})\approx 3.84$ for $\alpha_{pc}=.05$ where $F$ is a cumulative distribution function). $EV$ and $EV^*$ test the null hypothesis that $\lambda=0$ against the alternative that $\lambda>0$. Simonsohn et al. (2014a) interpret a rejection as indicating that "selective reporting [is] ruled out as sole explanation for findings"/"evidential value" (p. 535).
 
-Tests $LEV$ and $LEV^*$ test the null hypothesis that $\lambda\geq\lambda'$, where $\lambda'$ is chosen as the noncentrality parameter that would lead to a $1/3$ probability of statistical significance. For $\chi^2_1$ test statistics, $\lambda'=2.34$. The $1/3$ probability of significance is an arbitrary value selected by Simonsohn et al. (2014a), described as "merely a suggestion" (p. 538). The value of $1/3$ is hard-coded in their online app and cannot be changed. In reviewing papers that cited Simonsohn et al (2015), we did not encounter any authors that opted for a different value. 
+Tests $LEV$ and $LEV^*$ test the null hypothesis that $\lambda\geq\lambda'$, where $\lambda'$ is chosen as the noncentrality parameter that would lead to a $1/3$ probability of statistical significance. For $\chi^2_1$ test statistics, $\lambda'=2.34$. The $1/3$ probability of significance is an arbitrary value selected by Simonsohn et al. (2014a), described as "merely a suggestion" (p. 538). The value of $1/3$ is hard-coded in their online app and cannot be changed. In reviewing papers that cited Simonsohn et al. (2015), we did not encounter any authors that opted for a different value. 
 
 Test $LS$ is identical to test $LEV$ except that it tests the less arbitrary null hypothesis that $\lambda\geq0$; that is, it will reject when the observed test statistic is small under every possible noncentrality parameter. It is thus a test of the fit of the whole model. The analogous test $LS^*$ was never developed by the authors and test $LS$ was dropped without explanation from their online app. The properties of the tests will be similar to $LEV/LEV^*$, so we will not focus on these tests directly (but see the Supplement for additional commentary).
 
@@ -122,7 +122,7 @@ pcurve_use_summary |>
   )) |>
   select(-p_giv_EV) |>
   relocate(matches('k'), .after='p_marg') |>
-  gt(caption = 'Cross tabulation of the results of P-curve analyses in papers that cite Simonsohn et al (2015).') |>
+  gt(caption = 'Cross tabulation of the results of P-curve analyses in papers that cite Simonsohn et al. (2015).') |>
   fmt_percent(matches("^p"),decimals = 1) |>
   fmt_passthrough(matches('sig'),escape = FALSE) |>
   cols_label(
@@ -154,5 +154,5 @@ pcurve_use_summary |>
 #  as_latex_with_caption('revresults', afterpage=TRUE,spacing=1)
 ```
 
-As of July 2024, Simonsohn et al (2014; log method) and Simonsohn et al (2015; probit method) collectively have about 1200 citations, most of which are applications of the method. We reviewed all $P$-curve tests in the `r npapers_cite` papers that cited Simonsohn et al (2015); see Table \ref{tab:revresults} for a summary. More details can be found in the Supplement. The vast majority of applications of $EV^*$ were significant (`r round(sum(pcurve_use_summary$p_marg[4:6])*100,1)`% of $P$-curves), and the modal conclusion from applying $P$-curve methodology was "evidential value" for whatever set was reported. Only rarely (`r round(sum(pcurve_use_summary$p_marg[2])*100,1)`%) did a $P$-curve analyses yield a statistically nonsignificant $EV^*$ test and a significant $LEV^*$ test (supposedly indicating an "lack of evidential value").
+As of July 2024, Simonsohn et al. (2014; log method) and Simonsohn et al (2015; probit method) collectively have about 1200 citations, most of which are applications of the method. We reviewed all $P$-curve tests in the `r npapers_cite` papers that cited Simonsohn et al. (2015); see Table \ref{tab:revresults} for a summary. More details can be found in the Supplement. The vast majority of applications of $EV^*$ were significant (`r round(sum(pcurve_use_summary$p_marg[4:6])*100,1)`% of $P$-curves), and the modal conclusion from applying $P$-curve methodology was "evidential value" for whatever set was reported. Only rarely (`r round(sum(pcurve_use_summary$p_marg[2])*100,1)`%) did a $P$-curve analyses yield a statistically nonsignificant $EV^*$ test and a significant $LEV^*$ test (supposedly indicating an "lack of evidential value").
 

@@ -348,7 +348,7 @@ log_nonmono_data = construct_nonmono_data(X2_log, test='2014')
 
 ```
 
-In the main manuscript we demonstrated that the compound decision rule proposed by Simonsohn et al (2015) leads to a nonmonotone decisions: as the evidence is increased, one can move from rejecting to nonrejection of the null hypothesis.
+In the main manuscript we demonstrated that the compound decision rule proposed by Simonsohn et al. (2015) leads to a nonmonotone decisions: as the evidence is increased, one can move from rejecting to nonrejection of the null hypothesis.
 
 The following values were used to construct the figures in this section. The set of test statistics used to create the figure was the values below plus one (Figure \@ref(fig:lognonmono)A) or two (Figure \@ref(fig:lognonmono)B) values that were added to the set.
 
