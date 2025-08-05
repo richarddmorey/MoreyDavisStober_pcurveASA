@@ -53,7 +53,7 @@ names(qk) = c("Min.","Q1","Median","Q3","Max.")
 ```
 
 
-Test $EV^*$ is by far the most-used test of those we consider. In order to better understand how the method is used, we reviewed all articles that cited @Simonsohn:etal:2015: `r npapers_cite `, as of July 2024. After removing all papers that did not report a $P$-curve analysis or for which the methods of the analyses were not clear (e.g. did not report the result, or did not report the number of studies in the meta-analysis), we found `r sum(pcurve_use_summary$n)` $P$-curve analyses across `r npapers1` papers. Characteristics of these studies are shown in Table 1 of the main manuscript.
+Test $EV^*$ is by far the most-used test of those we consider. In order to better understand how the method is used, we reviewed all articles that cited @Simonsohn:etal:2015: `r npapers_cite `, as of July 2024. After removing all papers that did not report a $P$-curve analysis or for which the methods of the analyses were not clear (e.g., did not report the result, or did not report the number of studies in the meta-analysis), we found `r sum(pcurve_use_summary$n)` $P$-curve analyses across `r npapers1` papers. Characteristics of these studies are shown in Table 1 of the main manuscript.
 
 Many authors using the probit method cite only @Simonsohn:etal:2014 outlining the old method, in spite of using Simonsohn et al.'s online app that uses the new 2015 probit-based method. Our goal is not a comprehensive review, so we did not review those papers (of which there are nearing 1,000). Citations to @Simonsohn:etal:2015 will be enough to get a sense of how the method is used.
 

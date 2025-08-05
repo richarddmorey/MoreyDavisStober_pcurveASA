@@ -69,7 +69,7 @@ mtext(text = 'Untransformed p value',side = 3,line = 3, cex = .85)
 
 ```
 
-If we could summarise the main error in choosing the probit transform for this problem, it is that the probit is a two-tailed transformation (strongest evidence at $-\infty$ and $+\infty$), but test $EV^*$ applies it to one-tailed test statistics (strongest evidence at $+\infty$).
+If we could summarize the main error in choosing the probit transform for this problem, it is that the probit is a two-tailed transformation (strongest evidence at $-\infty$ and $+\infty$), but test $EV^*$ applies it to one-tailed test statistics (strongest evidence at $+\infty$).
 
 We can view the sensitivity as an interaction between the $p$ values in a set and any criterion. Recall that @Simonsohn:etal:2015 proposed the "half $P$-curve" rule, which combines a test where the truncation occurs at $p=0.05$ with one where the truncation occurs at $p=0.025$. The probit transform causes test $EV^*$ to be poorly behaved, because a value near *either* criterion can completely negate all other evidence. The second criterion also adds arbitrariness to the test. The reason for $\alpha_{pc}=0.05$ is clear: it is the standard threshold for statistical significance. The same cannot be said for the half $P$-curve's $\alpha_{pc}=0.025$, which was chosen arbitrarily. The test result can change radically depending on which criterion we happen to choose for the "half" criterion. In fact, we can almost achieve any test outcome we like.
 
