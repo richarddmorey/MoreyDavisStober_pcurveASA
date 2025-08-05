@@ -4,6 +4,8 @@ This repository contains the data, code and text for Morey &amp; Davis-Stober's 
 
 See also the **live P-curve app** at https://richarddmorey.github.io/pcurveAppTest (whose code can be found at https://github.com/richarddmorey/pcurveAppTest).
 
+The compiled paper, with supplement, can be downloaded from `/text/asa_article/` [[link directly to PDF](https://raw.githubusercontent.com/richarddmorey/MoreyDavisStober_pcurveASA/refs/heads/main/text/asa_article/Morey_Davis-Stober_2025_JASA_with_supplement.pdf)].
+
 ## Contents of important folders
 
 | Folder                | Contents                   |
