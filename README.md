@@ -2,6 +2,8 @@
 
 This repository contains the data, code and text for Morey &amp; Davis-Stober's "On the poor statistical properties of the P-curve meta-analytic procedure" (2025, Journal of the American Statistical Association).
 
+Morey, R. D., & Davis-Stober, C. P. (2025). On the poor statistical properties of the P-curve meta-analytic procedure. *Journal of the American Statistical Association, 1–19*. https://doi.org/10.1080/01621459.2025.2544397
+
 See also the **live P-curve app** at https://richarddmorey.github.io/pcurveAppTest (whose code can be found at https://github.com/richarddmorey/pcurveAppTest).
 
 The compiled paper, with supplement, can be downloaded from `/text/asa_article/` [[link directly to PDF](https://raw.githubusercontent.com/richarddmorey/MoreyDavisStober_pcurveASA/refs/heads/main/text/asa_article/Morey_Davis-Stober_2025_JASA_with_supplement.pdf)].
